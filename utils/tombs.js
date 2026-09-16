@@ -49,6 +49,56 @@
   }
   const wikiCite = w => '中文维基百科《' + w.article + '》信息框（revid ' + w.revid
     + '，' + w.retrieved + ' 检索）';
+  /** 逐主取百科那一行：多主陵不能整座共用一行（seq 从 1 起，与「陵主」一节同一个序号） */
+  function wikiRow(id, seq) {
+    const rows = WIKI[id];
+    if (!rows || !rows.length) return null;
+    if (seq == null) return wikiFor(id);
+    const w = rows.find(r => r.seq === seq);
+    if (!w) return null;
+    // seq 只是构建期的行序。名册一旦重排，按序号取就会把前一个人的年份挂到后一个人身上
+    // （唐乾陵真把李治的 628–683 挂给过武则天），所以还要名字对得上才认这一行。
+    const L = (LORDS[id] || [])[seq - 1];
+    if (!L) return null;
+    // 百科产物里的 lord/call 是从 lords 行逐字抄来的，所以严格相等就是最强的核对
+    // （t2s_fold 是构建期模块，运行时不引它）
+    return (L.lord && L.lord === w.lord) || (!!L.call && L.call === w.call) ? w : null;
+  }
+  /** 条目里本就两说、或给的生卒自相矛盾：值不采，但要把原文还给读者（PRD §9.1 不硬凑） */
+  function wikiAmbNote(w) {
+    if (!w) return null;
+    const bits = [];
+    if (w.birth_amb) bits.push('条目生年两说（' + w.birth_amb + '），不取其一');
+    if (w.death_amb) bits.push('条目卒年两说（' + w.death_amb + '），不取其一');
+    if (w.pair_bad) bits.push('条目给的生卒互相矛盾（' + w.pair_bad + '），不采用');
+    return bits.length ? bits.join('；') : null;
+  }
+  /**
+   * 生卒年的**唯一**供给口。优先级：用户两份表 / CBDB（两者已落在 BIO 与 lords 里）> 中文维基百科。
+   * 三个出口——地图卡与详情的「生卒年」格、生平节那一行、陵主节逐主行——都必须读它：
+   * 各读各的就会出现同一张卡一边有数、一边「⚠️ 暂未获取」。
+   * 百科只填前面都没有的那一边；同时回报"这次是百科补的"与"百科和名册不一致"，
+   * 行末出处才写得出来（不一致时不覆盖，只并列，与清朝那 55 行的处理同一取向）。
+   */
+  function lifeOf(id, seq) {
+    const b = BIO[id];
+    const rows = LORDS[id] || [];
+    const L = rows[seq == null ? 0 : seq - 1] || null;
+    // BIO 记的是"这座陵的第一主"：多主陵里第 2、3 主去读它就等于把前一个人的年份挂到后一个人身上
+    // （唐乾陵真的把李治的 628–683 挂给过武则天）。逐主只认该主自己的 lords 行，第一主才回退到 BIO。
+    const primary = !!(seq == null || seq === 1);
+    const w = wikiRow(id, seq);
+    const rBirth = L && L.birth != null ? L.birth : (primary && b && b.birth != null ? b.birth : null);
+    const rDeath = L && L.death != null ? L.death : (primary && b && b.death != null ? b.death : null);
+    const fromWiki = !!(w && ((rBirth == null && w.birth != null) || (rDeath == null && w.death != null)));
+    const diff = w && ((w.birth != null && rBirth != null && w.birth !== rBirth)
+      || (w.death != null && rDeath != null && w.death !== rDeath)) ? w : null;
+    return {
+      birth: rBirth != null ? rBirth : (w && w.birth != null ? w.birth : null),
+      death: rDeath != null ? rDeath : (w && w.death != null ? w.death : null),
+      fromWiki, diff, w, amb: wikiAmbNote(w)
+    };
+  }
   const LORDS_META = (LORDSFILE && LORDSFILE.meta) || {};
   const BIO_MISS = '⚠️ 暂未获取';
   const bioYear = y => (y == null ? null : (y < 0 ? '公元前' + (-y) : '公元' + y));
@@ -100,20 +150,68 @@
    * 小程序与镜像各拼一遍必然漂移，且"哪一格该显示未获取"这件事必须由一处决定。
    * 即位年额外标出它是从 CBDB 的哪类记录来的——没有记录就明写没有，不生造。
    */
+  /**
+   * 百科是否优先。**只有清朝优先**：那几格 CBDB 常是错的（皇太极年号记成「萬曆20 / 崇德8」、
+   * 康熙记成「順治11 / 康熙61」），用户 2026-09-16 因此明令「相关内容去百科找 不要 cbdb 了」。
+   * 百科层从 2026-09-16 起铺到全朝代，这条特例不许顺手变成通用规则——否则等于把整库史实改判给百科。
+   * 判据用生平记录自带的朝代字段：只有百科行的那一节没有优先级之争，不需要查名册。
+   */
+  const wikiFirst = b => !!b && b.dynasty === '清';
+
+  /** 没连上 CBDB、用户表也没有这一座时：百科供得上的那几格单独成一节，标题与口径句必须跟着换 */
+  function wikiOnlyRows(id) {
+    const w = wikiRow(id, 1);
+    if (!w || (LORDS[id] || []).length !== 1) return null;
+    const row = (k, v, from) => ({ k, v: v == null || v === '' ? BIO_MISS : v, from: from || null });
+    const cite = wikiCite(w);
+    const life = [bioYear(w.birth), bioYear(w.death)].filter(Boolean).join('–') || null;
+    const rows = [
+      row('条目人名', [w.lord, w.call].filter(Boolean).join('·'), cite),
+      row('庙号', w.temple, w.temple ? cite : null),
+      row('谥号', w.posthumous, w.posthumous ? cite : null),
+      row('生卒年', life, life ? cite + wikiLifeNote(lifeOf(id, 1)) : null),
+      row('即位年', w.accession == null ? null : bioYear(w.accession), w.accession == null ? null : cite),
+      row('在位区间', w.reign, w.reign ? cite : null),
+      row('年号（生/卒时）', w.era, w.era ? cite : null),
+      row('条目写的陵墓', w.burial_field, w.burial_field ? cite : null)
+    ];
+    return {
+      cbdb_id: null, retrieved: w.retrieved,
+      title: '生平与事功（中文维基百科条目）',
+      hint: '本座没连上 CBDB 人物记录、用户两份表也没有这一格，'
+        + '上面这几项按用户 2026-09-16 指令取自维基条目信息框，逐格带条目名与版本号可回查；'
+        + '条目没写的（亲属、著述、葬年核对）一律标未获取——不为 CBDB 的缺席编东西。',
+      rows, notes: null
+    };
+  }
+  /** 生卒年那格的补充说明：百科与名册不一致、或条目里本就两说 */
+  function wikiLifeNote(lf) {
+    const bits = [];
+    if (lf.diff) bits.push('百科与名册所记不一致，按优先级取名册');
+    if (lf.amb) bits.push(lf.amb);
+    return bits.length ? '；' + bits.join('；') : '';
+  }
+
   function bioRows(id) {
     const b = BIO[id];
-    if (!b) return null;
+    if (!b) return wikiOnlyRows(id);
     const row = (k, v, from) => ({ k, v: (v === null || v === undefined || v === '' ? BIO_MISS : v), from: from || null });
     // 没连上 CBDB 人物的行，就不许把 CBDB 的字段名当成出处端上去——那是在指认一个不存在的来源
     const cbFrom = t => (b.cbdb_id ? t : null);
-    // 清朝这几格 CBDB 是空的（用户 2026-09-16：「相关内容去百科找 不要 cbdb 了」）。
-    // 有百科值就百科优先，CBDB 原值不删、写进行末出处；没有百科行的陵完全走老路。
     const wk = wikiFor(id);
-    const pick = (cbVal, cbSrc, wVal) => (wk && wVal ? {
-      v: String(wVal),
-      from: wikiCite(wk) + (cbVal && cbVal !== String(wVal)
-        ? '；CBDB 原值「' + cbVal + '」不一致，按用户指令取百科' : '')
-    } : { v: cbVal || null, from: cbFrom(cbSrc) });
+    const wf = wikiFirst(b);
+    /**
+     * 一格该端哪个值。清朝：百科优先，CBDB 原值不删、写进行末；
+     * 其余：名册（用户表/CBDB）优先，百科只填它空着的格，两边不一致就并列出来。
+     */
+    const pick = (cbVal, cbSrc, wVal) => {
+      if (wk && wVal && (wf || !cbVal)) {
+        return { v: String(wVal), from: wikiCite(wk) + (cbVal && cbVal !== String(wVal)
+          ? '；' + (wf ? 'CBDB 原值「' + cbVal + '」不一致，按用户指令取百科'
+            : '名册原值「' + cbVal + '」不一致，按优先级保留名册') : '') };
+      }
+      return { v: cbVal || null, from: cbFrom(cbSrc) };
+    };
     const name = [b.ch_name, b.eng_name].filter(Boolean).join('｜');
     const lived = b.years_lived != null
       ? b.years_lived + ' 岁' + (b.years_lived_approx ? '（CBDB 标「' + b.years_lived_approx + '」）' : '')
@@ -129,25 +227,33 @@
     const accCbFrom = accWrong
       ? 'CBDB 即位条原值 ' + b.accession_year + ' 早于同记录的生年 ' + b.birth + '，自相矛盾，不采用'
       : (b.accession_via || null);
-    const R_ACC = wk && wk.accession != null
-      ? { v: bioYear(wk.accession), from: wikiCite(wk)
-        + (accCb ? '；CBDB 原值「' + accCb + '」不一致，按用户指令取百科' : '') }
-      : { v: accCb, from: accCbFrom };
+    const lf = lifeOf(id, (LORDS[id] || []).length === 1 ? 1 : null);
+    // 条目把「在位」分成多段时百科不落即位年（见 build_wiki_bio.js）：那一格不能只留
+    // 「暂未获取」——要写清这不是没查，是不替读者猜
+    const accNote = wk && wk.accession == null && (wk.reign_segments || 0) > 1
+      ? '；条目「在位」分 ' + wk.reign_segments + ' 段、起年不一，不取其一' : '';
+    const R_ACC = pick(accCb, accCbFrom, wk && wk.accession != null ? bioYear(wk.accession) : null);
+    // 百科补上即位年时，CBDB 那一侧发生过什么也要说：读者只看"百科说 820"会以为 CBDB 什么都没写
+    if (R_ACC.v && !accCb && accCbFrom) R_ACC.from = (R_ACC.from || '') + '；' + accCbFrom;
+    if (accNote && !R_ACC.v) R_ACC.from = ((R_ACC.from || '') + accNote).replace(/^；/, '') || null;
     const R_ERA = pick([b.era_birth, b.era_death].filter(Boolean).join(' / ') || null, null,
       wk && wk.era ? '在位年号 ' + wk.era : null);
+    const R_REIGN = pick(reignText(b), 'CBDB「皇帝」任命 FirstYear/LastYear', wk && wk.reign);
     const rows = [
         row(b.cbdb_id ? 'CBDB 人名' : '表内人名', name),
         row('庙号', R_TEMPLE.v, R_TEMPLE.from),
         row('谥号', R_POST.v, R_POST.from),
         row('别名', Array.isArray(b.aliases) && b.aliases.length ? b.aliases.join('、') : null),
-        row('生卒年', [bioYear(b.birth), bioYear(b.death)].filter(Boolean).join('–') || null,
-          lifeProvenance(b).from),
+        // 生卒年只从 lifeOf 出：基本信息那一格与「陵主」一节读的是同一个口子，
+        // 这一行再自己拼一遍就会长成两套话
+        row('生卒年', [bioYear(lf.birth), bioYear(lf.death)].filter(Boolean).join('–') || null,
+          (lf.fromWiki ? wikiCite(lf.w) + '；这一格用户两份表与人物记录里都没有，按 2026-09-16 指令由百科补'
+            : lifeProvenance(b).from) + wikiLifeNote(lf)),
         row('享年', lived, cbFrom('CBDB YearsLived（原值，本项目不另算虚/实岁）')),
         row('即位年', R_ACC.v, R_ACC.from),
         // 只搬 CBDB 任命条自带的两个年份；终止年是 CBDB 的未知占位就明写没记。
         // 清朝 CBDB 连任命条都没有 → 用百科信息框的「在位」那一段，出处写明是百科。
-        row('在位区间', wk && wk.reign ? wk.reign : reignText(b),
-          wk && wk.reign ? wikiCite(wk) : cbFrom('CBDB「皇帝」任命 FirstYear/LastYear')),
+        row('在位区间', R_REIGN.v, R_REIGN.from),
         // 在位时长是构建期算好的（reign_span），这里只负责把它说清：
         // CBDB 自己记的止年与"以卒年为限"的近似是两种口径，措辞不能一样
         row('在位时长', b.reign_span
@@ -228,11 +334,16 @@
     if (!rows || !rows.length) return null;
     return rows.map((r, i) => {
       const who = [r.call, r.lord].filter(Boolean).join(' ');
-      const life = r.birth != null && r.death != null ? shortYear(r.birth) + '–' + shortYear(r.death)
-        : r.death != null ? '卒 ' + shortYear(r.death)
-          : r.birth != null ? '生 ' + shortYear(r.birth) : null;
+      const lf = lifeOf(id, i + 1);
+      const life = lf.birth != null && lf.death != null ? shortYear(lf.birth) + '–' + shortYear(lf.death)
+        : lf.death != null ? '卒 ' + shortYear(lf.death)
+          : lf.birth != null ? '生 ' + shortYear(lf.birth) : null;
       const bits = [life || LORD_STATUS_WHY[r.status] || BIO_MISS];
       if (life && LORD_YEAR_WHY[r.status]) bits.push(LORD_YEAR_WHY[r.status]);
+      // 名册说"无载/不可考"而这一行现在有了数字，那数字不是名册给的——状态码不许悄悄消失
+      if (life && lf.fromWiki && (r.status === 'unknown_years' || r.status === 'unknown_birth')) {
+        bits.push('名册原标' + (r.status === 'unknown_years' ? '生卒均无载' : '生年不可考') + '，此年取自百科');
+      }
       if (r.burial != null) bits.push('葬 ' + shortYear(r.burial));
       else if (r.status === 'unknown_burial') bits.push('葬年无载');
       if (r.attribution === 'presumed') bits.push('归属推定');
@@ -246,6 +357,9 @@
         if (r.ysrc) from.push('年：' + (LORDS_META.source_labels[r.ysrc] || r.ysrc)
           + (r.yline ? ' 第 ' + r.yline + ' 行' : ''));
       }
+      // 年份由百科补的那一格，出处要指到条目与版本号——它不是名册给的
+      if (lf.fromWiki) from.push('年：' + wikiCite(lf.w) + '（名册两份表与人物记录均无此格）');
+      if (lf.amb) from.push(lf.amb);
       if (r.note) from.push(r.note);
       const v = bits.join('｜');
       return { seq: i + 1, k: who || BIO_MISS, v, from: from.join('；') || null,
@@ -267,7 +381,8 @@
   function lordPointer(id, tail, sec) {
     const rows = lordsOf(id);
     if (rows.length < 2) return null;
-    const dated = rows.filter(r => r.birth != null || r.death != null).length;
+    // 数的是「陵主」一节真正会显示年份的那几行（名册没有时百科会补），不是名册原始字段
+    const dated = rows.filter((r, i) => { const l = lifeOf(id, i + 1); return l.birth != null || l.death != null; }).length;
     const buried = rows.filter(r => r.burial != null).length;
     return {
       n: rows.length,
@@ -345,20 +460,34 @@
    * 没有星图节点，但仍该有生卒年可看，所以 emperor_id 允许为 null。
    */
   function lifespanOf(id) {
+    // 多主陵不合并成一个生卒年：年份各自落在人身上，由「陵主」一节逐主给
+    const seq = (LORDS[id] || []).length === 1 ? 1 : null;
+    const lf = lifeOf(id, seq);
     const b = BIO[id];
-    if (!b || (b.birth == null && b.death == null)) return null;
-    const l = LINK[id];
-    const star = l || {};
+    if (lf.birth == null && lf.death == null) return null;
+    const star = LINK[id] || {};
+    const w = lf.w || {};
+    const diffN = lf.diff
+      ? Math.max(Math.abs((lf.diff.birth || 0) - (lf.birth || 0)), Math.abs((lf.diff.death || 0) - (lf.death || 0)))
+      : 0;
     return {
-      text: (fmtYear(b.birth) || '?') + '–' + (fmtYear(b.death) || '?'),
-      emperor: b.ch_name || star.emperor || null,
-      emperor_id: star.emperor_id || null, cbdb_id: b.cbdb_id,
+      text: (fmtYear(lf.birth) || '?') + '–' + (fmtYear(lf.death) || '?'),
+      emperor: (b && b.ch_name) || w.lord || star.emperor || null,
+      emperor_id: star.emperor_id || null, cbdb_id: b && b.cbdb_id,
       // 短标签给地图卡片用（长串给详情页）；同样只在这一处生成
-      short: b.life_src === 'user_csv' ? '用户提供表' : 'CBDB',
-      // 出处必须跟着数字走：这两个值可能来自用户提供的表，也可能来自 CBDB，不是考录文档
-      source: lifeProvenance(b).src + '；葬年核对自《中国历代皇帝陵信息整理》'
-        + (b.burial_delta === 0 ? '，两者同年'
-          : (b.burial_delta == null ? '，考录无葬年可核' : '，相差 ' + Math.abs(b.burial_delta) + ' 年'))
+      short: lf.fromWiki ? '中文维基百科' : b && b.life_src === 'user_csv' ? '用户提供表' : 'CBDB',
+      wikiFilled: lf.fromWiki,
+      // 出处必须跟着数字走：这三个值可能来自用户提供的表、CBDB，或由百科补上空格，不是考录文档
+      source: [
+        b ? lifeProvenance(b).src : '',
+        lf.fromWiki ? '这一格用户两份表与人物记录里都没有，按 2026-09-16 指令由百科补：' + wikiCite(w) : '',
+        lf.diff ? '百科作 ' + [fmtYear(lf.diff.birth), fmtYear(lf.diff.death)].filter(Boolean).join('–')
+          + '，与名册差 ' + diffN + ' 年，按优先级不采用' : '',
+        lf.amb || '',
+        b ? '葬年核对自《中国历代皇帝陵信息整理》'
+          + (b.burial_delta === 0 ? '，两者同年'
+            : b.burial_delta == null ? '，考录无葬年可核' : '，相差 ' + Math.abs(b.burial_delta) + ' 年') : ''
+      ].filter(Boolean).join('；')
     };
   }
 
@@ -896,6 +1025,11 @@
       lifespanOf, starOf, starJump, tombOf, bioRaw, MISS,
       pairDistance, kmTextOf, fmtYear, BIO_META,
       LINKED: Object.keys(LINK).length, bioRows, BIO_LINKED: Object.keys(BIO).length,
+      // 三件事三个数，不许混谈：BIO_LINKED 是"CBDB/用户表连上"的老账（语义不动），
+      // WIKI_FILLED 是百科供过值的座数，BIO_SHOWN 是界面上真渲染出「生平与事功」一节的座数
+      WIKI_FILLED: Object.keys(WIKI).length,
+      BIO_SHOWN: new Set([...Object.keys(BIO), ...Object.keys(WIKI)
+        .filter(id => (LORDS[id] || []).length === 1 && !BIO[id])]).size,
       JUMPED: Object.keys(JUMPS).length, BACKS: Object.keys(BACK).length,
       // 陵主侧同一套规矩：出口只有这一个，页面与 search.js 都不许自己 require lords.js
       lordRows, lordsOf, lordPointer, LORDS_META, LORDS_TOMBS: Object.keys(LORDS).length,
