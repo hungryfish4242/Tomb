@@ -61,9 +61,9 @@
 </head>
 <body>
 <header>
-  <a class="nav" href="tombs.html">地图</a>
+  <a class="nav" href="index.html">地图</a>
   <a class="nav on" href="timeline.html">时间轴</a>
-  <a class="nav" href="index.html">星图</a>
+  <a class="nav" href="star.html">星图</a>
   <a class="nav" href="compare.html">对比</a>
   <span class="cnt" id="cnt"></span>
 </header>
@@ -121,7 +121,7 @@
     if (text != null) n.textContent = text;
     return n;
   }
-  function goto(id) { location.href = 'tombs.html?tomb=' + encodeURIComponent(id); }
+  function goto(id) { location.href = 'index.html?tomb=' + encodeURIComponent(id); }
 
   function renderChips() {
     const box = document.getElementById('chips');

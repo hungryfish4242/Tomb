@@ -1,870 +1,875 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>皇帝人物星图</title>
-  <style>
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      background: #16213e;
-      color: #eaeaea;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
-      line-height: 1.6;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 16px;
-    }
-    .search-input {
-      width: 100%;
-      background: rgba(255,255,255,0.1);
-      border: none;
-      border-radius: 8px;
-      padding: 12px 16px;
-      color: #fff;
-      font-size: 15px;
-      margin-bottom: 12px;
-    }
-    .search-input::placeholder { color: #7f8c8d; }
-    .filter-bar {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .filter-item {
-      padding: 6px 14px;
-      border-radius: 16px;
-      font-size: 13px;
-      background: rgba(255,255,255,0.1);
-      color: #a0a0a0;
-      cursor: pointer;
-      border: none;
-    }
-    .filter-item.active {
-      background: rgba(233,69,96,0.3);
-      color: #e94560;
-    }
-    .filter-sep {
-      align-self: center;
-      font-size: 12px;
-      color: #6f7b8d;
-      margin-left: 4px;
-    }
-    .depth-item.active {
-      background: rgba(79,172,254,0.28);
-      color: #4facfe;
-    }
-    .canvas-wrap {
-      width: 100%;
-      height: 420px;
-      background: rgba(0,0,0,0.2);
-      border-radius: 12px;
-      margin-bottom: 16px;
-      position: relative;
-      overflow: hidden;
-      touch-action: none;
-    }
-    #starCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
-    #starCanvas:active { cursor: grabbing; }
-    .legend {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(22,33,62,0.85);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 12px;
-      max-width: 220px;
-      pointer-events: none;
-    }
-    .legend-title { color: #fff; font-weight: 600; margin-bottom: 6px; }
-    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .legend-note { margin-top: 6px; font-size: 11px; line-height: 1.55; color: #8f9aa8; }
-    .legend-line { width: 16px; height: 2px; flex-shrink: 0; }
-    .legend-line--style { width: 34px; }
-    .hint {
-      position: absolute;
-      bottom: 8px;
-      right: 10px;
-      font-size: 11px;
-      color: rgba(255,255,255,0.4);
-      pointer-events: none;
-    }
-    .card {
-      background: rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-      border: 1px solid rgba(255,255,255,0.1);
-    }
-    .title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-    .subtitle { font-size: 14px; color: #a0a0a0; margin-bottom: 4px; }
-    .tag {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      margin-right: 8px;
-    }
-    .tag-emperor { background: rgba(233,69,96,0.2); color: #e94560; }
-    .tag-relative { background: rgba(79,172,254,0.2); color: #4facfe; }
-    .tag-relation { background: rgba(255,193,7,0.2); color: #ffc107; }
-    .list-item {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      cursor: pointer;
-    }
-    .list-item:last-child { border-bottom: none; }
-    .list-item:hover { background: rgba(255,255,255,0.03); }
-    .list-title { font-size: 16px; color: #fff; }
-    .list-subtitle { font-size: 13px; color: #a0a0a0; }
-    .lineage-chain { font-size: 12px; color: #a0a0a0; margin-top: 2px; }
-    .lineage-rel {
-      color: #ffc107;
-      margin: 0 4px;
-      font-size: 11px;
-    }
-    .lineage-arrow { opacity: 0.6; margin-left: 6px; }
-    .hidden { display: none; }
-    /* 三视图导航条：与 tombs.html 同一套外观 */
-    .viewswitch { display: flex; gap: 4px; padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
-    .viewswitch a {
-      flex: 1; text-align: center; padding: 8px 0; font-size: 14px; text-decoration: none;
-      color: #8B897F; border-radius: 8px; background: rgba(255,255,255,.04);
-    }
-    .viewswitch a.on { color: #F0DFA8; background: rgba(212,160,23,.16); }
-    .focus-miss { padding: 8px 14px; font-size: 12px; color: #E07A5F; }
-    .tomb-link { display: block; margin-top: 8px; padding: 8px 0; text-align: center;
-      font-size: 13px; text-decoration: none; color: #F0DFA8;
-      background: rgba(212,160,23,.14); border: 1px solid rgba(212,160,23,.4); border-radius: 8px; }
-    .link-note { margin-top: 6px; font-size: 11px; line-height: 1.55; color: #8f9aa8; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>全国帝陵导览 · 帝陵地图</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #12100E; color: #E8E2D5;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+    line-height: 1.6;
+  }
+  h1, h2, h3, .serif { font-family: 'Songti SC', 'Source Han Serif SC', 'Noto Serif CJK SC', SimSun, serif; }
+  .phone { max-width: 430px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; background: #12100E; }
+
+  .viewswitch { display: flex; gap: 4px; padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+  .viewswitch a {
+    flex: 1; text-align: center; padding: 8px 0; font-size: 14px; text-decoration: none;
+    color: #8B897F; border-radius: 8px; background: rgba(255,255,255,.04);
+  }
+  .viewswitch a.on { color: #F0DFA8; background: rgba(212,160,23,.16); }
+  .viewswitch a.todo { color: #5C5A53; }
+  .qbox { display: flex; align-items: center; margin-left: auto; gap: 4px; }
+  .starcta { display: inline-block; margin-top: 8px; padding: 6px 14px; font-size: 12px;
+    color: #F0DFA8; text-decoration: none; background: rgba(212,160,23,.14);
+    border: 1px solid rgba(212,160,23,.4); border-radius: 999px; }
+  .qbox input { width: 190px; padding: 4px 8px; font-size: 12.5px; color: #F7F2E6;
+    background: rgba(255,255,255,.06); border: 1px solid rgba(212,160,23,.35); border-radius: 6px; }
+  .qbox button { padding: 3px 8px; font-size: 12px; color: #A9A496; background: transparent;
+    border: 1px solid rgba(255,255,255,.14); border-radius: 6px; cursor: pointer; }
+
+  /* 37 个朝代内容宽约 2540px，容器最窄只有 430px。滚动条不能全藏掉、右端要有截断渐隐，
+     否则这一排读起来就是「只有这几个朝代」，后面的朝代等于没有入口。 */
+  .filterbar { position: relative; }
+  .filters {
+    padding: 8px 12px 10px; display: flex; gap: 6px; overflow-x: auto; white-space: nowrap;
+    scrollbar-width: thin; scrollbar-color: rgba(212,160,23,.45) transparent;
+  }
+  .filters::-webkit-scrollbar { height: 5px; }
+  .filters::-webkit-scrollbar-thumb { background: rgba(212,160,23,.45); border-radius: 3px; }
+  .filters::-webkit-scrollbar-track { background: transparent; }
+  .filterfade {
+    position: absolute; right: 0; top: 0; width: 44px; height: 100%; pointer-events: none;
+    background: linear-gradient(90deg, rgba(18,16,14,0) 0%, rgba(18,16,14,.8) 65%, rgba(18,16,14,.96) 100%);
+  }
+  .chip {
+    padding: 5px 12px; border-radius: 14px; font-size: 12.5px; border: 1px solid transparent;
+    background: rgba(255,255,255,.06); color: #A9A496; cursor: pointer; flex: none;
+  }
+  .chip.on { color: #fff; border-color: currentColor; }
+  .switches { display: flex; gap: 6px; padding: 0 12px 8px; flex-wrap: wrap; }
+  .sw { padding: 4px 10px; border-radius: 6px; font-size: 12px; background: rgba(255,255,255,.05); color: #8B897F; cursor: pointer; border: 1px solid rgba(255,255,255,.08); }
+  .sw.on { background: rgba(192,57,43,.22); color: #E8A79B; border-color: rgba(192,57,43,.5); }
+
+  .mapwrap { position: relative; flex: 1; min-height: 420px; background: #0E0D0B; overflow: hidden; touch-action: none; }
+  svg { display: block; width: 100%; height: 100%; cursor: grab; }
+  svg.dragging { cursor: grabbing; }
+  .disclaim {
+    position: absolute; left: 8px; bottom: 6px; font-size: 10.5px; color: #6E6A5F;
+    background: rgba(18,16,14,.72); padding: 2px 6px; border-radius: 4px; pointer-events: none;
+  }
+  .zoomers { position: absolute; right: 8px; bottom: 34px; display: flex; flex-direction: column; gap: 6px; }
+  .zoomers button { width: 30px; height: 30px; border-radius: 6px; border: 1px solid rgba(255,255,255,.14); background: rgba(26,24,21,.9); color: #C9C4B6; font-size: 17px; cursor: pointer; }
+  .modeflag { position: absolute; left: 8px; top: 8px; font-size: 11px; color: #9C978A; background: rgba(18,16,14,.72); padding: 3px 8px; border-radius: 5px; }
+
+  .legend { display: flex; gap: 12px; padding: 8px 12px; font-size: 11px; color: #8B897F; border-top: 1px solid rgba(255,255,255,.06); flex-wrap: wrap; }
+  .legend i { display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; }
+  .nearby { border: 1px solid rgba(212,160,23,.35); background: rgba(212,160,23,.07); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .nearby .nb-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .nearby .nb-bar b { flex: 1; font-size: 13px; color: #F3EEE3; }
+  /* 卡片里的按钮不在 .act 容器内，拿不到 .act button 那套样式，不给规则就是浏览器默认白底 */
+  .nearby button, .nblist li button { flex: none; align-self: center; padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,.14); background: transparent; color: #A9A496; font-size: 12px; cursor: pointer; }
+  .pickbox { border: 1px solid rgba(255,255,255,.14); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; }
+  .pickcols { display: flex; gap: 8px; margin: 8px 0; }
+  .pickcols select { flex: 1; background: #1A1815; color: #E8E2D6; border: 1px solid rgba(255,255,255,.16); border-radius: 6px; padding: 6px; }
+
+  .panel { border-top: 1px solid rgba(255,255,255,.1); background: #1A1815; padding: 14px 14px 20px; max-height: 46vh; overflow-y: auto; }
+  .panel h2 { margin: 0 0 2px; font-size: 20px; color: #F2EADB; }
+  .meta { font-size: 12.5px; color: #9C978A; margin-bottom: 8px; }
+  .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .tag { font-size: 11.5px; padding: 3px 8px; border-radius: 5px; background: rgba(255,255,255,.07); color: #B8B2A2; }
+  .tag.warn { background: rgba(224,122,95,.18); color: #E9A183; }
+  .tag.approx { background: rgba(140,140,140,.18); color: #B4B0A4; }
+  .fields { display: grid; grid-template-columns: 68px 1fr; gap: 5px 10px; font-size: 13px; }
+  .fields dt { color: #8B897F; }
+  .fields dd { margin: 0; color: #DED8C9; }
+  .miss { color: #C88B7B; }
+  .act { margin-top: 12px; display: flex; gap: 8px; }
+  .act button { flex: 1; padding: 9px 0; border-radius: 8px; border: 1px solid rgba(212,160,23,.4); background: rgba(212,160,23,.12); color: #F0DFA8; font-size: 13px; cursor: pointer; }
+  .act button.ghost { border-color: rgba(255,255,255,.14); background: transparent; color: #A9A496; }
+  .src { margin-top: 10px; font-size: 11.5px; color: #7E7A6F; }
+  .src a { color: #9CB4C4; word-break: break-all; }
+  .unpin { color: #9CB4C4; cursor: pointer; border-bottom: 1px dotted rgba(156,180,196,.5); }
+  .unpin:hover { color: #C7DAE6; border-bottom-color: #C7DAE6; }
+  .grouplist { margin: 0; padding: 0; list-style: none; }
+  .grouplist li { padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 14px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+  .grouplist li span { color: #8B897F; font-size: 12px; }
+  .hint { font-size: 12px; color: #8B897F; margin: 0 0 8px; }
+  .count { font-size: 11.5px; color: #7E7A6F; padding: 0 12px 6px; }
+  .sec-t { margin: 14px 0 6px; font-size: 13px; font-weight: 600; color: #E0D8C6; }
+  .tier { margin-top: 8px; padding: 8px 10px; border-left: 3px solid #E07A5F; background: rgba(224,122,95,.12); color: #E9A183; font-size: 12px; line-height: 1.6; }
+  .from { margin-left: 6px; padding: 1px 6px; border-radius: 4px; font-size: 10.5px; color: #9FB3A6; background: rgba(94,140,108,.2); }
+  .sub { display: block; font-size: 11px; color: #7E7A6F; line-height: 1.5; margin-top: 2px; }
+  .body { margin: 0; font-size: 12.5px; color: #B8B2A2; line-height: 1.7; }
+  .reasons { margin: 0; padding-left: 18px; font-size: 12.5px; color: #DED8C9; line-height: 1.8; }
+  .nblist { margin: 0; padding: 0; list-style: none; }
+  .nblist li { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13.5px; cursor: pointer; display: flex; justify-content: space-between; gap: 8px; }
+  .nblist li .km { flex: none; color: #F0DFA8; font-size: 13px; }
+  .links { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .links a { font-size: 11.5px; color: #9CB4C4; word-break: break-all; }
+  .foot { margin-top: 14px; font-size: 11px; color: #6B675E; line-height: 1.6; }
+  h2 .en { font-size: 12px; font-weight: 400; color: #7E7A6F; }
+  text { user-select: none; }
+</style>
 </head>
 <body>
-  <div class="container">
-    <nav class="viewswitch">
-      <a href="tombs.html">帝陵地图</a>
-      <a href="timeline.html">时间轴</a>
-      <a class="on" href="index.html">人物星图</a>
-      <a href="compare.html">皇帝对比卡</a>
-    </nav>
-    <div class="focus-miss" id="focusmiss" hidden></div>
-    <input type="text" id="searchInput" class="search-input" placeholder="搜索皇帝姓名、字号或朝代">
+<div class="phone">
+  <nav class="viewswitch">
+    <a class="on" href="index.html">帝陵地图</a>
+    <a href="timeline.html">时间轴</a>
+    <a href="star.html">人物星图</a>
+    <a href="compare.html">皇帝对比卡</a>
+    <span class="qbox">
+      <input id="q" type="search" placeholder="陵名／皇帝／朝代／地名" autocomplete="off">
+      <button id="qclear" type="button">清空</button>
+    </span>
+  </nav>
 
-    <div class="filter-bar" id="filterBar"></div>
+  <div class="filterbar">
+    <div class="filters" id="filters"></div>
+    <div class="filterfade"></div>
+  </div>
+  <div class="switches" id="switches"></div>
+  <div class="count" id="count"></div>
 
-    <div class="canvas-wrap" id="canvasWrap">
-      <canvas id="starCanvas"></canvas>
-      <div class="legend" id="legend"></div>
-      <div class="hint">拖拽移动 · 滚轮缩放 · 点击节点</div>
-    </div>
-
-    <div class="card" id="infoCard">
-      <div class="title" id="infoName">-</div>
-      <div class="subtitle" id="infoMeta">-</div>
-      <div class="subtitle" id="infoCount">-</div>
-      <span id="infoTomb"></span>
-    </div>
-
-    <div class="card">
-      <div class="title">世系链</div>
-      <div class="subtitle" id="lineageHint">当前世代范围内可达的其他皇帝</div>
-      <div id="lineageList"></div>
-    </div>
-
-    <div class="card">
-      <div class="title">关联人物</div>
-      <div id="relationList"></div>
-    </div>
-
-    <div class="card">
-      <div class="title">皇帝列表</div>
-      <div id="emperorList"></div>
-    </div>
+  <div class="mapwrap" id="mapwrap">
+    <svg id="map" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="modeflag" id="modeflag"></div>
+    <div class="zoomers"><button id="zin">＋</button><button id="zout">－</button></div>
+    <div class="disclaim">示意图，非标准地图，不作测绘依据｜界线与地名由官方地图 API 提供，本项目不画自绘县市界与国界段线；本预览无瓦片，自绘省界仅供认形</div>
   </div>
 
-  <script src="star_map_data.js"></script>
-  <script src="utils/geo.js"></script>
-  <script src="utils/tomb_data.js"></script>
-  <script src="utils/emperor_link.js"></script>
-  <script src="utils/emperor_bio.js"></script>
-  <script src="utils/lords.js"></script>
+  <div class="legend">
+    <div><i style="background:#D4A017;border-radius:50%"></i>本体坐标（朝代色实心圆＋朝代首字）</div>
+    <div>只有市级质心的帝陵<b>不画点</b>，座数见下方计数，名单见面板里「不在图上的 N 座」一节</div>
+    <div><i style="border:1.5px dashed #E07A5F;border-radius:50%"></i>位置／归属存疑（橙色虚线描边）</div>
+    <div id="geolegend"></div>
+  </div>
+
+  <div class="panel" id="panel"></div>
+</div>
+
+<script src="utils/geo.js"></script>
+<script src="china_provinces.js"></script>
+<script src="utils/tomb_data.js"></script>
+<script src="utils/emperor_link.js"></script>
+<script src="utils/emperor_bio.js"></script>
+<script src="utils/lords.js"></script>
 <script src="utils/wiki_bio.js"></script>
-  <script src="utils/tombs.js"></script>
-  <script src="utils/i18n.js"></script>
-  <script src="utils/graph_note.js"></script>
-  <script>
-    // 帝陵↔星图的连接表只有一份（utils/tombs.js 里，含"一人多陵就抛错"那道闸）；
-    // 子包/镜像都引它，不许在本页再拼一遍反查。
-    const TOMBS = window.Tombs.createTombs(window.__TOMB_DATA__);
-    // 筛选条与四色一一对应，避免出现「一个按钮三种颜色」
-    const RELATION_FILTERS = [
-      { key: 'all', label: '全部', types: ['parent-child', 'sibling', 'spouse', 'inlaw', 'other'] },
-      { key: 'parent-child', label: '直系', types: ['parent-child'] },
-      { key: 'sibling', label: '兄弟', types: ['sibling'] },
-      { key: 'affinal', label: '配偶·姻亲', types: ['spouse', 'inlaw'] },
-      { key: 'other', label: '其他', types: ['other'] }
-    ];
+<script src="utils/tombs.js"></script>
+<script src="utils/i18n.js"></script>
+<script src="utils/search.js"></script>
+<script src="utils/places.js"></script>
+<script src="utils/places_view.js"></script>
+<script src="utils/map_render.js"></script>
+<script>
+(function () {
+  if (!window.__TOMB_DATA__) {
+    document.getElementById('panel').innerHTML = '<p class="hint">数据文件 tomb_data.js 未找到。请先在仓库根目录运行 <code>node build_mausoleum_data.js</code> 生成。</p>';
+    return;
+  }
+  const tombs = window.Tombs.createTombs(window.__TOMB_DATA__);
+  const MR = window.MapRender;
+  const places = window.PlacesView.createPlaces(window.__PLACES__);
+  // 存的是用户自报的县市名与代码，不是设备位置；读不出来或为空一律按"没选过"处理
+  const NB_KEY = 'nearbyPlace';
+  const readSaved = () => {
+    try { return JSON.parse(localStorage.getItem(NB_KEY) || 'null'); } catch (e) { return null; }
+  };
+  const writeSaved = v => { try { localStorage.setItem(NB_KEY, JSON.stringify(v)); } catch (e) {} };
+  const svg = document.getElementById('map');
+  const wrap = document.getElementById('mapwrap');
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (t, a) => { const n = document.createElementNS(NS, t); for (const k in a) n.setAttribute(k, a[k]); return n; };
 
-    // 连线配色规则（用户指定，不可随意改动）：
-    //   1. 兄弟姐妹        → 蓝
-    //   2. 父子 / 母子     → 红
-    //   3. 配偶 / 姻亲     → 黄
-    //   4. 其他            → 灰
-    const RELATION_COLORS = {
-      'sibling': '#4facfe',
-      'parent-child': '#e94560',
-      'spouse': '#ffd93d',
-      'inlaw': '#ffd93d',
-      'other': '#95a5a6'
+  // 视图：等距圆柱投影。横向按固定纬度 35.5° 的 cos 压缩为 K，
+  // 使 bbox/proj/底图变换三者同源——底图上万个点只需构建一次，每帧只改 transform。
+  const K = Math.cos(35.5 * Math.PI / 180);
+  const view = { lat: 35.5, lng: 106.5, lonSpan: 40 };
+  const state = { dynasty: null, doubtfulOnly: false, forgottenOnly: false,
+    forgottenStrong: false, accOn: false, accessTier: '', radiusKm: 100, sel: null, group: null, nbFor: null, pick: null };
+  // 与 timeline.html 共用一份筛选状态（PRD §3.2 切换视图时保持不变）。
+  // 镜像没有小程序的 globalData，sessionStorage 是同一条通道的等价物；键名两端一致。
+  const FILTER_KEY = 'tl:filters';
+  const FILTER_DIMS = ['dynasty', 'doubtfulOnly', 'forgottenOnly', 'forgottenStrong',
+    'accOn', 'accessTier', 'radiusKm'];
+  try {
+    const shared = JSON.parse(sessionStorage.getItem(FILTER_KEY) || 'null');
+    if (shared) for (const k of FILTER_DIMS) if (k in shared) state[k] = shared[k];
+  } catch (e) { /* 隐私模式下 sessionStorage 会抛，忽略即可：筛选退回到本页内部状态 */ }
+  state.radiusKm = tombs.normRadius(state.radiusKm);
+  function writeFilters() {
+    const out = {};
+    for (const k of FILTER_DIMS) out[k] = state[k];
+    try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(out)); } catch (e) {}
+  }
+  const CLUSTER_SPAN = 24;   // 经度跨度大于该值（即缩放过小）时出市级聚类气泡
+  const geoMod = window.__CHINA_GEO__ || null;
+  const geo = (geoMod && geoMod.provinces) || null;
+  // 构建计数器：镜像侧「连续 render() 不重建底图」这件事只能靠它证明，
+  // 光看图形对不对是看不出来的——重建一次也画得对，只是每帧多灌五千多个点。
+  // 挂到 window 才读得到：整个脚本在 IIFE 里，而这条证明要在浏览器里做。
+  const buildCount = { geo: 0 };
+  window.__BUILD_COUNT__ = buildCount;
+
+  function dims() {
+    const r = wrap.getBoundingClientRect();
+    return { w: Math.max(r.width, 300), h: Math.max(r.height, 300) };
+  }
+  function scale() { const { w } = dims(); return w / (view.lonSpan * K); }
+  function proj(lat, lng) {
+    const { w, h } = dims();
+    const s = scale();
+    return { x: w / 2 + s * (lng - view.lng) * K, y: h / 2 + s * (view.lat - lat) };
+  }
+  function bbox() {
+    const { w, h } = dims();
+    const latSpan = view.lonSpan * K * (h / w);
+    return {
+      latMin: view.lat - latSpan / 2, latMax: view.lat + latSpan / 2,
+      lngMin: view.lng - view.lonSpan / 2, lngMax: view.lng + view.lonSpan / 2
     };
+  }
 
-    // 图例按上述四条规则呈现：spouse 与 inlaw 同色，合为一行。
-    const EDGE_LEGEND = [
-      { key: 'sibling', color: '#4facfe', label: '兄弟姐妹' },
-      { key: 'parent-child', color: '#e94560', label: '父子 / 母子 / 祖孙' },
-      { key: 'affinal', color: '#ffd93d', label: '配偶 / 姻亲' },
-      { key: 'other', color: '#95a5a6', label: '其他' }
-    ];
+  /** 省界只构建一次：路径用世界坐标 (lng*K, -lat)，靠 group transform 映射到屏幕 */
+  function buildGeoLayer() {
+    const g = el('g', { id: 'geolayer', fill: 'rgba(200,170,110,.07)', stroke: '#4A4436', 'stroke-width': 1,
+                        'fill-rule': 'evenodd', 'vector-effect': 'non-scaling-stroke' });
+    for (const p of geo) {
+      for (const r of p.rings) {
+        let d = '';
+        for (let i = 0; i < r.length; i++) d += (i ? 'L' : 'M') + (r[i][0] * K).toFixed(2) + ',' + (-r[i][1]).toFixed(2);
+        g.appendChild(el('path', { d: d + 'Z', 'vector-effect': 'non-scaling-stroke' }));
+      }
+    }
+    buildCount.geo++;
+    return g;
+  }
 
-    // 线型表达出处，颜色只表达关系（四色是硬规则，不再分配新颜色给新数据源）：
-    //   实线 = CBDB 原载；虚线 = CBDB 缺载、据 Wikidata 补；
-    //   点线 = 补充且条目仅靠弱匹配确定；点划线 = 两源给出的父母不一致（存疑）。
-    const LINE_STYLE_LEGEND = [
-      { css: 'background:#e8eef5;', label: '实线：CBDB 原载（加粗 = 与 Wikidata 互证）' },
-      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 6px,transparent 6px 10px);', label: '虚线：CBDB 缺载，据 Wikidata 补入' },
-      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 2px,transparent 2px 5px);', label: '点线：补入且人物匹配存疑' },
-      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 8px,transparent 8px 11px,#e8eef5 11px 13px,transparent 13px 16px);', label: '点划线：两源记载的父母不一致' }
-    ];
+  const shortName = n => String(n || '')
+    .replace(/(特别行政区|自治区|壮族自治区|回族自治区|维吾尔自治区|藏族羌族自治州|省|市)$/, '')
+    .replace(/(壮族|回族|维吾尔|藏族|蒙古族|柯尔克孜)$/, '');
 
-    function edgeDash(edge) {
-      if (edge.disputed) return [8, 3, 2, 3];
-      if (edge.origin === 'supplement') return edge.low_confidence ? [2, 3] : [6, 4];
-      return [];
+  function opts() {
+    return {
+      dynasty: state.dynasty ? [state.dynasty] : [],
+      doubtfulOnly: state.doubtfulOnly,
+      forgottenOnly: state.forgottenOnly, forgottenStrong: state.forgottenStrong,
+      accessTier: state.accessTier
+    };
+  }
+
+  let geoLayer = null, overlay = null;
+
+  function render() {
+    const { w, h } = dims();
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+    if (!geoLayer) {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.appendChild(el('rect', { x: 0, y: 0, width: w, height: h, fill: '#0E0D0B' }));
+      if (geo) { geoLayer = buildGeoLayer(); svg.appendChild(geoLayer); }
+      overlay = el('g', { id: 'overlay' }); svg.appendChild(overlay);
+    } else {
+      while (overlay.firstChild) overlay.removeChild(overlay.firstChild);
+    }
+    const s = scale();
+    const tf = `translate(${(w / 2 - s * view.lng * K).toFixed(2)} ${(h / 2 + s * view.lat).toFixed(2)}) scale(${s.toFixed(4)})`;
+    if (geoLayer) geoLayer.setAttribute('transform', tf);
+    // 产品端（微信小程序）界线与地名全部由官方地图 API 提供，本项目不画任何自绘界线。
+    // 这份预览没有瓦片，geoLayer 那层省界纯属"认形"的拐杖；县市级界线连拐杖都不留——
+    // 0.05° 抽稀市界实测"真实边界→所画的线"中位偏差 19.7 km，画出来只会误导判读。
+
+    const c = bbox();
+    for (let lat = Math.ceil(c.latMin / 5) * 5; lat < c.latMax; lat += 5) {
+      const y = proj(lat, c.lngMin).y;
+      overlay.appendChild(el('line', { x1: 0, x2: w, y1: y, y2: y, stroke: 'rgba(255,255,255,.035)', 'stroke-width': 1 }));
+    }
+    for (let lng = Math.ceil(c.lngMin / 5) * 5; lng < c.lngMax; lng += 5) {
+      const x = proj(c.latMin, lng).x;
+      overlay.appendChild(el('line', { x1: x, x2: x, y1: 0, y2: h, stroke: 'rgba(255,255,255,.035)', 'stroke-width': 1 }));
     }
 
-    function getNodeColor(node, centerId) {
-      if (node.id === centerId) return '#e94560';
-      return node.type === 'emperor' ? '#4facfe' : '#95a5a6';
-    }
-
-    let starMap = null;
-    let nodeMap = null;
-    let adjacency = null;
-    let selectedId = 'li-shimin';
-    let filterIndex = 0;
-    let depth = 2;
-    const MAX_DEPTH = 3;
-    const MAX_NODES = 90;
-    let currentSubgraph = { nodes: [], edges: [], depthOf: new Map() };
-
-    let positions = new Map();
-    let view = { scale: 1, x: 0, y: 0 };
-    let isPanning = false;
-    let panStart = { x: 0, y: 0, viewX: 0, viewY: 0 };
-    let canvasCssSize = { width: 0, height: 0 };
-
-    function buildAdjacency() {
-      adjacency = new Map(starMap.nodes.map(n => [n.id, []]));
-      for (const e of starMap.edges) {
-        const s = adjacency.get(e.source);
-        const t = adjacency.get(e.target);
-        if (s) s.push({ edge: e, other: e.target });
-        if (t) t.push({ edge: e, other: e.source });
+    // 省名注记：文字放在覆盖层里按屏幕尺寸画，不随底图一起缩放
+    if (geo) {
+      for (const p of geo) {
+        if (!p.center || !p.name || p.adcode === '100000_JD') continue;
+        const pt = proj(p.center[1], p.center[0]);
+        if (pt.x < -30 || pt.x > w + 30 || pt.y < -20 || pt.y > h + 20) continue;
+        const t = el('text', { x: pt.x, y: pt.y, 'text-anchor': 'middle', fill: '#5C5647', 'font-size': 10 });
+        t.textContent = shortName(p.name);
+        overlay.appendChild(t);
       }
     }
 
-    // 连线颜色只表达关系四色，出处改用线型 + 这枚文字标签（PRD §9.1：每个事实都要能追溯到来源）。
-    function annotateProvenance() {
-      for (const e of starMap.edges) {
-        e.provenance = e.disputed ? '存疑：两源记载不一'
-          : e.origin === 'supplement' ? (e.low_confidence ? '存疑：据 Wikidata 补' : '据 Wikidata 补')
-            : e.cross_validated ? '两源互证' : '';
+    const clustered = view.lonSpan > CLUSTER_SPAN;
+    const pins = tombs.pins(Object.assign({ cluster: clustered }, opts()));
+    const geoLabel = geo ? '离线预览·自绘省界（真机为官方底图）' : '底图未加载';
+    document.getElementById('modeflag').textContent = geoLabel + ' · ' + (clustered
+      ? `市级聚类 ${pins.length} 个点（放大展开为单体图钉）`
+      : `单体图钉 ${pins.length} 个标记`);
+
+    if (clustered) pins.sort((a, b) => b.count - a.count);
+    // F-01-8 圈外淡化。哪些点该淡——用共用的 MR.dimOutside(圈内成员判据)，与小程序同一实现：
+    // 一枚标记只要代表的帝陵里有一座在圈内就保持原样（聚类气泡据此不会整片变暗）。
+    // 淡的方式两端不同：这里用 SVG opacity（浏览器里可验），小程序侧用实色压暗
+    // （原生 label 的 alpha 是否生效我们无法证明，静默不生效比不淡化更糟）。
+    const nbOnMap = state.nbFor && tombs.mappable(tombs.byId.get(state.nbFor));
+    const nbKeep = nbOnMap
+      ? MR.keepIdSet(state.nbFor, tombs.detail(state.nbFor, { radiusKm: state.radiusKm }).neighbors) : null;
+    for (const p of pins) {
+      overlay.appendChild(drawPin(p, clustered, pins, nbKeep && MR.dimOutside(nbKeep, p.tombIds)));
+    }
+    if (nbOnMap) overlay.appendChild(drawNeighbors(state.nbFor));
+    // 陪葬墓在淡化之后画：半径判据是关于帝陵邻居的，不该拿来压暗陪葬墓
+    if (state.accOn) overlay.appendChild(drawAccLayer());
+
+    document.getElementById('count').textContent =
+      `全库 ${tombs.counts.total} 座｜有本体坐标 ${tombs.counts.bodyCoord}＋区域估算 ${tombs.counts.areaEstimate}，`
+      + `共 ${tombs.counts.pinnable} 枚逐座上图（估算点描边示疑）｜只有市级质心、不画点 ${tombs.counts.offMap}`
+      + `｜无坐标 ${tombs.counts.unpinned}（后两类仍可在详情与时间轴查看）`;
+  }
+
+  /** 陪葬墓层：中性灰胶囊 +「陪·名」，与帝陵的朝代色圆徽明显不同 */
+  function drawAccLayer() {
+    const g = el('g', { id: 'acclayer' });
+    for (const a of tombs.acc) {
+      const { x, y } = proj(a._g.lat, a._g.lng);
+      const box = el('g', { style: 'cursor:pointer' });
+      box.appendChild(el('rect', {
+        x: x - 4, y: y - 4, width: 8, height: 8, rx: 2,
+        fill: '#33414F', stroke: 'rgba(255,255,255,.42)', 'stroke-width': 1
+      }));
+      const t = el('text', { x: x + 8, y: y + 4, fill: '#C8D2DC', 'font-size': 10.5 });
+      t.textContent = '陪·' + a.name;
+      box.appendChild(t);
+      box.addEventListener('click', ev => { ev.stopPropagation(); showAcc(a); });
+      g.appendChild(box);
+    }
+    return g;
+  }
+
+  /** 陪葬墓卡：归属只认 parent_hint，没有就明写「未记」，不拿县名去推理 */
+  function showAcc(a) {
+    panel.innerHTML = `
+      <h2>${esc(a.name)} <span class="tag approx">陪葬墓</span></h2>
+      <div class="meta">${esc(a.county)}${a.historic ? '｜' + esc(a.historic) : ''}</div>
+      <dl class="fields">
+        <dt>归属</dt><dd>${a.parent ? esc(a.parent) + '（考录表 parent_hint）'
+          : '文档未记所属帝陵。它所在县确有帝陵陵区，但那是推理不是出处，所以这里不写。'}</dd>
+        <dt>坐标</dt><dd>WGS-84 ${a.lat.toFixed(6)}, ${a.lng.toFixed(6)}</dd>
+        <dt>出处</dt><dd>${esc(a.source || '—')}</dd>
+      </dl>
+      <p class="hint">陪葬墓不是帝陵：不计入「全库 N 座」，也不参与半径内邻居与检索所用的帝陵名册。</p>
+      <div class="act"><button class="ghost" data-home="1">返回总览</button></div>`;
+    panel.scrollTop = 0;
+  }
+
+  function drawPin(p, clustered, all, dim) {
+    const { x, y } = proj(p.lat, p.lng);
+    const g = el('g', { style: 'cursor:pointer', opacity: dim ? 0.26 : 1 });
+    if (x < -40 || x > dims().w + 40 || y < -40 || y > dims().h + 40) return g;
+    const selected = state.group === p.key || (p.kind === 'tomb' && state.sel === p.key);
+
+    if (p.kind === 'cluster') {
+      const r = Math.min(26, 12 + Math.log2(p.count) * 4);
+      g.appendChild(el('circle', {
+        cx: x, cy: y, r, fill: 'rgba(176,138,79,.26)',
+        stroke: '#B08A4F', 'stroke-width': selected ? 3 : 1.6
+      }));
+      const t1 = el('text', { x, y: y + 1, 'text-anchor': 'middle', fill: '#F2EADB', 'font-size': 13, 'font-weight': 600 });
+      t1.textContent = p.count; g.appendChild(t1);
+      const t2 = el('text', { x, y: y + r + 12, 'text-anchor': 'middle', fill: '#9C978A', 'font-size': 10.5 });
+      t2.textContent = (p.city || p.label || '').replace(/\s*\d+$/, '');
+      g.appendChild(t2);
+    } else {
+      const r = selected ? 15 : 12.5;
+      const doubtful = p.renderClass === 'exact-doubtful';
+      g.appendChild(el('circle', {
+        cx: x, cy: y, r, fill: p.color, 'fill-opacity': doubtful ? .35 : .92,
+        stroke: doubtful ? '#E07A5F' : 'rgba(255,255,255,.75)', 'stroke-width': selected ? 3 : doubtful ? 2 : 1,
+        'stroke-dasharray': doubtful ? '3 2.5' : 'none'
+      }));
+      const t = el('text', { x, y: y + 4.5, 'text-anchor': 'middle', fill: '#F7F2E6', 'font-size': 12.5, 'font-weight': 600 });
+      t.textContent = p.label; g.appendChild(t);
+      if (selected) {
+        const tt = el('text', { x, y: y - r - 6, 'text-anchor': 'middle', fill: '#F2EADB', 'font-size': 11.5 });
+        tt.textContent = p.name; g.appendChild(tt);
       }
     }
+    g.addEventListener('click', ev => { ev.stopPropagation(); onPin(p, clustered, all); });
+    return g;
+  }
 
-    async function init() {
-      starMap = window.__STAR_DATA__;
-      if (!starMap) {
-        document.body.innerHTML = '<p style="padding:24px;color:#e94560">数据未加载：请先运行 node build_star_map.js 生成 star_map_data.js</p>';
-        return;
-      }
-      nodeMap = new Map(starMap.nodes.map(n => [n.id, n]));
-      // 帝陵侧的深链：?focus=<星图节点 id>。找不到就明说——静默回到默认中心，
-      // 读者会以为屏幕上这张网属于他刚点的那座陵。
-      const focus = new URLSearchParams(location.search).get('focus');
-      if (focus) {
-        const hit = nodeMap.get(focus);
-        if (hit && hit.type === 'emperor') selectedId = focus;
-        else {
-          const box = document.getElementById('focusmiss');
-          box.hidden = false;
-          box.textContent = window.GraphNote.FOCUS_MISS;
-        }
-      }
-      annotateProvenance();
-      buildAdjacency();
+  function onPin(p, clustered) {
+    if (p.kind === 'tomb') { state.sel = p.key; state.group = null; state.nbFor = null; showTomb(p.key); }
+    else { state.group = p.key; state.sel = null; state.nbFor = null; showGroup(p); }
+    render();
+  }
 
-      renderFilters();
-      renderLegend();
-      bindEvents();
-      updateView();
+  // 分组、截断、标签文案都取自 MapRender：两个实现共用一套判据，不会各说一套数字
+  function nbLayer(id) {
+    const ego = tombs.byId.get(id);
+    // 能不能当圆心由 utils 判一次（小程序侧 map.js 问的是同一个函数）
+    if (!tombs.mappable(ego)) return null;
+    return MR.buildNeighborLayer(ego, tombs.detail(id, { radiusKm: state.radiusKm }).neighbors, tombs.byId);
+  }
+
+  function drawNeighbors(id) {
+    const g = el('g', { id: 'nblayer' });
+    const ego = tombs.byId.get(id);
+    const layer = nbLayer(id);
+    if (!ego || !layer) return g;
+    const c = proj(ego._g.lat, ego._g.lng);
+    const degLat = tombs.NEIGHBOR_RADIUS_KM / 111.32;
+    const degLng = degLat / Math.max(0.2, Math.cos(ego._g.lat * Math.PI / 180));
+    g.appendChild(el('ellipse', {
+      cx: c.x, cy: c.y, rx: Math.abs(proj(ego._g.lat, ego._g.lng + degLng).x - c.x),
+      ry: Math.abs(proj(ego._g.lat + degLat, ego._g.lng).y - c.y),
+      fill: 'rgba(74,110,143,.09)', stroke: '#4A6E8F', 'stroke-width': 1, 'stroke-dasharray': '6 4'
+    }));
+    const bubbles = layer.markers.slice(1);
+    for (const m of bubbles) {
+      const p = proj(m.latitude, m.longitude);
+      g.appendChild(el('line', {
+        x1: c.x, y1: c.y, x2: p.x, y2: p.y,
+        stroke: MR.NB_LINE.slice(0, 7), 'stroke-width': 1, 'stroke-dasharray': '4 3'
+      }));
     }
-
-    function bindEvents() {
-      document.getElementById('searchInput').addEventListener('input', e => {
-        renderEmperorList(searchEmperors(e.target.value));
+    // 气泡压在引线之上，否则长引线会穿过数字
+    for (const m of bubbles) {
+      const p = proj(m.latitude, m.longitude);
+      const L = m.label;
+      const bw = MR.textWidth(L.content, L.fontSize) + (L.padding + L.borderWidth) * 2;
+      const bh = L.fontSize + (L.padding + L.borderWidth) * 2;
+      const bg = el('g', { style: 'cursor:pointer' });
+      bg.appendChild(el('rect', {
+        x: p.x - bw / 2, y: p.y - bh / 2, width: bw, height: bh,
+        rx: 7, fill: L.bgColor, stroke: L.borderColor.slice(0, 7), 'stroke-width': 1
+      }));
+      const t = el('text', {
+        x: p.x, y: p.y + L.fontSize * 0.36, 'text-anchor': 'middle',
+        fill: L.color, 'font-size': L.fontSize, 'font-weight': 600
       });
-      window.addEventListener('resize', () => updateView());
-      bindCanvasEvents();
-    }
-
-    function bindCanvasEvents() {
-      const canvas = document.getElementById('starCanvas');
-
-      canvas.addEventListener('pointerdown', e => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const world = screenToWorld(x, y);
-        const hit = hitTest(world.x, world.y);
-
-        if (hit && hit.type === 'emperor') {
-          selectedId = hit.id;
-          updateView();
-          return;
-        }
-
-        isPanning = true;
-        panStart = { x: e.clientX, y: e.clientY, viewX: view.x, viewY: view.y };
-        canvas.setPointerCapture(e.pointerId);
+      t.textContent = L.content;
+      bg.appendChild(t);
+      const tid = layer.keys[m.id];
+      bg.addEventListener('click', ev => {
+        ev.stopPropagation();
+        state.nbFor = null; state.sel = tid; state.group = null;
+        showTomb(tid); render();
       });
-
-      canvas.addEventListener('pointermove', e => {
-        if (!isPanning) return;
-        const dx = e.clientX - panStart.x;
-        const dy = e.clientY - panStart.y;
-        view.x = panStart.viewX + dx;
-        view.y = panStart.viewY + dy;
-        draw();
-      });
-
-      canvas.addEventListener('pointerup', e => {
-        isPanning = false;
-        canvas.releasePointerCapture(e.pointerId);
-      });
-
-      canvas.addEventListener('pointerleave', e => {
-        isPanning = false;
-      });
-
-      canvas.addEventListener('wheel', e => {
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const sx = e.clientX - rect.left;
-        const sy = e.clientY - rect.top;
-        const worldBefore = screenToWorld(sx, sy);
-        const zoomFactor = Math.exp(-e.deltaY * 0.0015);
-        const newScale = Math.min(Math.max(view.scale * zoomFactor, 0.2), 5);
-        view.x = sx - worldBefore.x * newScale;
-        view.y = sy - worldBefore.y * newScale;
-        view.scale = newScale;
-        draw();
-      }, { passive: false });
+      g.appendChild(bg);
     }
+    return g;
+  }
 
-    function screenToWorld(sx, sy) {
-      return {
-        x: (sx - view.x) / view.scale,
-        y: (sy - view.y) / view.scale
-      };
+  const panel = document.getElementById('panel');
+  const MISS = '⚠️ 暂未获取';
+  const esc = s => String(s == null ? '' : s)
+    .replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  /** PRD §9.1：缺项显式渲染「⚠️ 暂未获取」并给警示色，不留空、不编造 */
+  const miss = v => (!v || String(v).indexOf(MISS) >= 0) ? `<span class="miss">${esc(v || MISS)}</span>` : esc(v);
+  // 先转义再套链接：微信出处里的 & 会变成 &amp;，放进 href 正好是合法写法
+  function linkify(s) {
+    return esc(s).replace(/(https?:\/\/[^\s）)】\]]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+  }
+
+  function tagRow(d) {
+    return `<div class="badges">
+        <span class="tag">${esc(d.certainty)}</span><span class="tag">${esc(d.type)}</span>
+        ${d.approx ? '<span class="tag approx">只有市级质心·不上图：仅表示在这座市</span>' : ''}
+        ${!d.hasCoord ? '<span class="tag approx">暂无可上图坐标</span>' : ''}
+        ${d.forgotten ? '<span class="tag warn">被遗忘的帝陵</span>' : ''}
+      </div>`;
+  }
+
+  function showTomb(id) {
+    const d = tombs.detail(id, { radiusKm: state.radiusKm });
+    if (!d) return;
+    const nb = d.neighbors;
+    const armed = state.nbFor === d.id;
+    const egoRec = tombs.byId.get(d.id);
+    const onMap = tombs.mappable(egoRec);
+    const line = nb.slice(0, 6).map(n =>
+      `${esc(n.name)} ${esc(n.kmText)}`).join(' ｜ ');
+    panel.innerHTML = `
+      <h2>${esc(d.title)}</h2>
+      <div class="meta">${esc(d.dynasty)}｜${esc(d.emperor)}</div>
+      ${tagRow(d)}
+      <dl class="fields">
+        ${d.fields.map(f => `<dt>${esc(f.k)}</dt><dd>${miss(f.v)}</dd>`).join('')}
+      </dl>
+      ${d.summary ? `<p class="body" style="margin-top:8px">${esc(d.summary)}</p>` : ''}
+      <div class="act">
+        <button data-detail="${esc(d.id)}">查看详情与出处</button>
+        ${onMap ? `<button class="ghost" data-nb="${esc(d.id)}">${armed ? '收起图上邻居' : `图上标 ${state.radiusKm} km 邻居`}</button>` : ''}
+        <button class="ghost" data-home="1">返回总览</button>
+      </div>
+      <div class="src"><b>${esc(tombs.nbHeading(state.radiusKm))} ${nb.length} 座</b><br>
+        ${line || '该半径内暂无其他有本体坐标的帝陵'}
+        ${nb.length > 6 ? `<br>…另有 ${nb.length - 6} 座` : ''}</div>
+      ${onMap
+        ? (armed ? `<p class="hint">${esc(tombs.neighborNote(nbLayer(d.id), state.radiusKm))}</p>` : '')
+        : (nb.length ? `<p class="hint">${esc(tombs.nbOffMapNote(egoRec))}</p>` : '')}`;
+  }
+
+  /** 详情页：四字段全文 + 具体坐标与档位 + 半径内邻居 + 可点出处（浏览器里直接开新页） */
+  function showDetail(id) {
+    const d = tombs.detail(id, { radiusKm: state.radiusKm });
+    if (!d) return;
+    const L = d.location;
+    const sLink = tombs.starJump(id);
+    panel.innerHTML = `
+      <h2>${esc(d.title)}${d.nameEn ? ` <span class="en">${esc(d.nameEn)}</span>` : ''}</h2>
+      <div class="meta">${esc(d.dynasty)}｜${esc(d.emperor)}${d.coBuried ? '｜合葬' : ''}${d.posthumous ? '｜追尊陵' : ''}</div>
+      ${tagRow(d)}
+      <p class="body" style="margin:8px 0">
+        <a class="starcta" href="compare.html?add=${encodeURIComponent(id)}">＋ ${esc(window.I18N.ui('zh').compareAdd)}</a>
+        <a class="starcta" href="compare.html">${esc(window.I18N.ui('zh').compareGo)}</a>
+      </p>
+
+      ${d.bio ? `
+      <div class="sec-t">${esc(d.bio.title)}</div>
+      <dl class="fields">
+        ${d.bio.rows.map(r => `<dt>${esc(r.k)}</dt><dd>${miss(r.v)}${r.from ? ` <span class="from">${esc(r.from)}</span>` : ''}</dd>`).join('')}
+      </dl>
+      ${d.bio.notes ? `<p class="body">CBDB 原文：${esc(d.bio.notes)}</p>` : ''}
+      <p class="hint">${esc(d.bio.hint)}</p>
+      ${sLink ? `<a class="starcta" href="star.html?focus=${encodeURIComponent(sLink.emperorId)}">${esc(window.I18N.ui('zh').starCta)}</a>` : ''}`
+        : `<div class="sec-t">生平与事功</div>
+      <p class="hint">${esc(window.I18N.ui('zh').bioNone)}</p>`}
+
+      <div class="sec-t">考录四字段</div>
+      <dl class="fields">
+        ${d.fields.map(f => `<dt>${esc(f.k)}</dt><dd>${miss(f.v)}${f.from ? ` <span class="from">${esc(f.from)}</span>` : ''}</dd>`).join('')}
+        ${d.visit ? `<dt>参观信息</dt><dd>${esc(d.visit)}</dd>` : ''}
+      </dl>
+      ${d.summary ? `<p class="body" style="margin-top:8px">${esc(d.summary)}</p>` : ''}
+
+      ${d.lords ? `
+      <div class="sec-t">${esc(window.I18N.ui('zh').secLords)} ${d.lords.length} ${esc(window.I18N.ui('zh').unitLords)}</div>
+      <dl class="fields">
+        ${d.lords.map(r => `<dt>${esc(r.seq)}. ${esc(r.k)}</dt><dd>${miss(r.v)}${r.from ? ` <span class="from">${esc(r.from)}</span>` : ''}</dd>`).join('')}
+      </dl>
+      <p class="hint">${esc(window.I18N.ui('zh').lordsHint)}</p>` : ''}
+
+      <div class="sec-t">具体位置</div>
+      <dl class="fields">
+        <dt>行政归属</dt><dd>${miss(L.admin)}</dd>
+        <dt>坐标</dt><dd>${L.hasCoord
+          ? `${esc(L.wgs84)}<span class="sub">${esc(L.coordSystem)}；地图渲染用 GCJ-02 ${esc(L.gcj02)}，直线距离一律按 ${esc(L.coordSystem)} 计算</span>`
+          : miss('')}</dd>
+        <dt>坐标档位</dt><dd>${miss(L.precision)}${L.source
+          ? `<span class="sub">出处 ${esc(L.source)}${L.cross ? '（两个以上独立源互证）' : '（单源，未见互证源）'}</span>` : ''}</dd>
+      </dl>
+      ${L.tierNote ? `<div class="tier">${esc(L.tierNote)}</div>` : ''}
+
+      ${d.notes ? `<div class="sec-t">考异</div><p class="body">${esc(d.notes)}</p>` : ''}
+
+      ${d.forgotten ? `<div class="sec-t">为什么算「被遗忘」</div>
+        <ul class="reasons">${d.forgottenReasons.map(r => `<li>${esc(r)}</li>`).join('')}</ul>
+        <p class="hint">「被遗忘」是按 PRD §5.2 判据做的定性判断，每条都必须带至少一个理由码，不靠印象。</p>` : ''}
+
+      <div class="sec-t">${esc(tombs.nbHeading(state.radiusKm))} ${d.neighbors.length} 座</div>
+      ${d.neighbors.length ? `<ul class="nblist">${d.neighbors.map(n => `
+          <li data-tomb="${esc(n.id)}">
+            <span><b>${esc(n.name)}</b>
+              <span class="sub">${esc(n.place)}${n.certainty !== '已确认' ? '｜' + esc(n.certainty) : ''}${n.distNote ? '｜' + esc(n.distNote) : ''}</span>
+            </span>
+            <b class="km">${esc(n.kmText)}</b>
+          </li>`).join('')}</ul>
+        <p class="hint">直线距离为 WGS-84 大圆距离，不是路程；有一方只到市级行政质心时不给数字，因为那算出来的是质心与陵的间隔，不是两座陵的距离。不足 0.1 km 的只标「&lt;0.1」——已低于源坐标可分辨的精度，不代表两陵同点。</p>`
+      : '<p class="hint">该半径内暂无其他有本体坐标的帝陵。</p>'}
+
+      <div class="sec-t">出处 ${d.sources.length} 条</div>
+      <div class="src">${d.sources.map(s => '· ' + linkify(s)).join('<br>')}</div>
+      ${d.links.length ? `<div class="links">${d.links.map(l =>
+        `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label)}</a>`).join('')}</div>` : ''}
+
+      <div class="act">
+        <button class="ghost" data-tomb="${esc(d.id)}">返回摘要</button>
+        <button class="ghost" data-home="1">返回总览</button>
+      </div>
+      <p class="foot">示意图，非标准地图，不作测绘依据。坐标仅用于文化导览定位，精度以「坐标档位」一栏为准。</p>`;
+    panel.scrollTop = 0;
+  }
+
+  // 面板里的跳转一律走事件委托：内联 onclick 调不到 IIFE 里的函数（之前「返回总览」就是这么坏掉的）
+  panel.addEventListener('click', e => {
+    const t = e.target.closest('[data-nb],[data-detail],[data-tomb],[data-home],[data-nbpick],[data-pickhere],[data-pickcancel]');
+    if (!t) return;
+    if (t.dataset.nbpick) { state.pick = []; panel.innerHTML = panelHome(); render(); return; }
+    if (t.dataset.pickcancel) { state.pick = null; panel.innerHTML = panelHome(); render(); return; }
+    if (t.dataset.pickhere) {
+      const a = state.pick[state.pick.length - 1];
+      const row = places.byAdcode.get(a);
+      if (row) { writeSaved({ adcode: row.a, name: row.n }); state.pick = null; }
+      panel.innerHTML = panelHome(); render(); return;
     }
-
-    function nodeRadius(node) {
-      if (node.id === selectedId) return 24;
-      return node.type === 'emperor' ? 18 : 14;
+    if (t.dataset.nb) {
+      state.nbFor = state.nbFor === t.dataset.nb ? null : t.dataset.nb;
+      showTomb(t.dataset.nb); render(); return;
     }
-
-    function hitTest(wx, wy) {
-      let best = null;
-      let bestDist = Infinity;
-      for (const [id, pos] of positions) {
-        const node = nodeMap.get(id);
-        const r = nodeRadius(node);
-        const dx = pos.x - wx;
-        const dy = pos.y - wy;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist <= r + 6 && dist < bestDist) {
-          best = node;
-          bestDist = dist;
-        }
-      }
-      return best;
+    if (t.dataset.home) {
+      state.sel = null; state.group = null; state.nbFor = null; state.pick = null;
+      panel.innerHTML = panelHome(); render(); return;
     }
+    if (t.dataset.detail) { showDetail(t.dataset.detail); return; }
+    state.sel = t.dataset.tomb; state.group = null; state.nbFor = null;
+    showTomb(state.sel); render();
+  });
 
-    function renderFilters() {
-      const bar = document.getElementById('filterBar');
-      const relationButtons = RELATION_FILTERS.map((f, i) =>
-        `<button class="filter-item ${i === filterIndex ? 'active' : ''}" data-index="${i}">${f.label}</button>`
-      ).join('');
-      const depthButtons = [1, 2, 3].slice(0, MAX_DEPTH).map(d =>
-        `<button class="filter-item depth-item ${d === depth ? 'active' : ''}" data-depth="${d}">${d} 代</button>`
-      ).join('');
-      bar.innerHTML = relationButtons +
-        '<span class="filter-sep">世代</span>' + depthButtons;
+  // <select> 的 change 不进 click 委托，单独挂一个
+  panel.addEventListener('change', e => {
+    const s = e.target.closest('[data-pickcol]');
+    if (!s) return;
+    const ci = Number(s.dataset.pickcol);
+    const a = Number(s.value);
+    const sel = (state.pick || []).slice(0, ci);
+    if (!a) { state.pick = sel; panel.innerHTML = panelHome(); render(); return; }
+    sel[ci] = a;
+    const row = places.byAdcode.get(a);
+    if (row && places.leafAt(a)) { writeSaved({ adcode: row.a, name: row.n }); state.pick = null; }
+    else state.pick = sel;
+    panel.innerHTML = panelHome(); render();
+  });
 
-      bar.querySelectorAll('button[data-index]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          filterIndex = parseInt(btn.dataset.index, 10);
-          renderFilters();
-          updateView();
-        });
-      });
-      bar.querySelectorAll('button[data-depth]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          depth = parseInt(btn.dataset.depth, 10);
-          renderFilters();
-          updateView();
-        });
-      });
-    }
+  function showGroup(p) {
+    const items = tombs.membersOf(p.key);
+    document.getElementById('panel').innerHTML = `
+      <h2>${p.city || p.label}</h2>
+      <p class="hint">本气泡聚合 ${items.length} 座帝陵，都是有本体坐标的。继续放大地图即可看到单体图钉。</p>
+      <ul class="grouplist">${items.map(m => `<li data-id="${m.id}"><b>${m.name_cn}</b><span>${m.state}${m.certainty !== 'confirmed' ? ' · ' + m.certaintyLabel : ''}</span></li>`).join('')}</ul>`;
+    document.querySelectorAll('.grouplist li').forEach(li =>
+      li.addEventListener('click', () => { state.sel = li.dataset.id; state.group = null; showTomb(li.dataset.id); render(); }));
+  }
 
-    function renderLegend() {
-      const relationRows = EDGE_LEGEND.map(r =>
-        `<div class="legend-row"><span class="legend-line" style="background:${r.color}"></span><span>${r.label}</span></div>`
-      ).join('');
-      const styleRows = LINE_STYLE_LEGEND.map(r =>
-        `<div class="legend-row"><span class="legend-line legend-line--style" style="${r.css}"></span><span>${r.label}</span></div>`
-      ).join('');
-      const origin = {};
-      for (const n of starMap.nodes) origin[n.origin] = (origin[n.origin] || 0) + 1;
-      document.getElementById('legend').innerHTML = `
-        <div class="legend-title">关系</div>${relationRows}
-        <div class="legend-title">线型＝来源</div>${styleRows}
-        <div class="legend-note">${window.GraphNote.graphNote(starMap.meta, origin)}</div>
-        <div class="link-note">${window.GraphNote.tombLinkNote(TOMBS.BACKS, TOMBS.JUMPED, starMap.meta.emperor_count)}</div>
-      `;
-    }
+  function nearbyCardHtml() {
+    const saved = readSaved();
+    const row = saved && places.byAdcode.get(Number(saved.adcode));
+    if (!row) return '';
+    const items = tombs.nearestTo(row.c, tombs.NEARBY_LIMIT);
+    if (!items.length) return '';
+    return `<div class="nearby"><div class="nb-bar"><b>离${esc(row.n)}最近的帝陵</b>
+      <button class="ghost" data-nbpick="1">换位置</button></div>
+      <ul class="nblist">${items.map(x => `<li data-tomb="${esc(x.id)}">
+        <span><b>${esc(x.name)}</b>
+        <span class="sub">${esc(x.place)}</span></span>
+        <b class="km">${esc(x.kmText)} km</b>
+        <button class="ghost" data-nb="${esc(x.id)}">图上标邻居</button></li>`).join('')}</ul>
+      <p class="hint">${esc(tombs.nearbyNote({ name: row.n }))}</p></div>`;
+  }
 
-    function getDirectEdges(nodeId, types) {
-      return starMap.edges.filter(e => {
-        const match = e.source === nodeId || e.target === nodeId;
-        if (!match) return false;
-        if (!types || types.length === 0) return true;
-        return types.includes(e.relation);
-      });
-    }
+  function pickHtml() {
+    if (!state.pick) return '';
+    const cols = places.columnsOf(state.pick);
+    return `<div class="pickbox"><b>你所在的县市${state.pick.length ? '：' + esc(places.namesOf(state.pick).join(' ／ ')) : ''}</b>
+      <div class="pickcols">${cols.map((col, ci) => `<select data-pickcol="${ci}">
+        <option value="">请选择</option>
+        ${col.map(r => `<option value="${r.a}"${state.pick[ci] === r.a ? ' selected' : ''}>${esc(r.n)}</option>`).join('')}
+      </select>`).join('')}</div>
+      <p class="hint">${esc(tombs.PLACE_PICK_NOTE)}</p>
+      <div class="act"><button data-pickhere="1" ${state.pick.length ? '' : 'disabled'}>就选这一级</button>
+      <button class="ghost" data-pickcancel="1">取消</button></div></div>`;
+  }
 
-    function getNeighborSubgraph(centerId, types, maxDepth) {
-      const allowed = new Set(types);
-      const depthOf = new Map([[centerId, 0]]);
-      const pickedEdges = [];
-      const seenEdge = new Set();
-      let frontier = [centerId];
+  function panelHome() {
+    const chip = m => `<span class="unpin" data-detail="${m.id}">${m.name_cn}</span>`;
+    return `${nearbyCardHtml()}${pickHtml()}<h2>全国帝陵地图</h2>
+      <p class="hint">点地图上的标记看简介与半径内的直线邻居（半径可在下方调）；拖动可平移，滚轮或 ＋/－ 缩放。缩小到一定比例后同市帝陵自动并成聚类气泡，放大则展开为单体图钉。</p>
+      <div class="src"><b>不在图上的 ${tombs.notOnMap.length} 座</b>（都不画点，避免把不确定的位置画成确定；详情、列表与时间轴照常可查）<br>
+      只有市级行政质心、本体检址坐标未获取的 ${tombs.offMap.length} 座：${tombs.offMap.map(chip).join('、')}<br>
+      连省市县线索都不完整的 ${tombs.unpinned.length} 座：${tombs.unpinned.map(chip).join('、')}</div>`;
+  }
 
-      for (let d = 0; d < maxDepth; d++) {
-        const next = [];
-        for (const id of frontier) {
-          for (const { edge, other } of adjacency.get(id) || []) {
-            if (!allowed.has(edge.relation)) continue;
-            if (!seenEdge.has(edge.id)) {
-              seenEdge.add(edge.id);
-              pickedEdges.push(edge);
-            }
-            if (depthOf.has(other)) continue;
-            depthOf.set(other, d + 1);
-            next.push(other);
-          }
-        }
-        frontier = next;
-        if (!frontier.length) break;
-      }
+  // 朝代筛选条：只列出真实存在于数据集里的朝代
+  const filters = document.getElementById('filters');
+  const allChip = document.createElement('div');
+  allChip.className = 'chip on'; allChip.textContent = '全部朝代'; allChip.dataset.code = '';
+  filters.appendChild(allChip);
+  for (const d of tombs.dynastyOptions) {
+    const chip = document.createElement('div');
+    chip.className = 'chip'; chip.dataset.code = d.code;
+    chip.style.borderColor = d.color;
+    chip.innerHTML = `${d.label || d.code} ${d.count}`;
+    chip.title = '配色为设计选择，区分靠朝代首字徽章（PRD §7.2 无障碍补充）';
+    filters.appendChild(chip);
+  }
+  filters.addEventListener('click', e => {
+    const chip = e.target.closest('.chip'); if (!chip) return;
+    state.dynasty = chip.dataset.code || null;
+    filters.querySelectorAll('.chip').forEach(c => { c.classList.remove('on'); c.style.background = 'rgba(255,255,255,.06)'; c.style.color = '#A9A496'; });
+    chip.classList.add('on');
+    if (state.dynasty) { const d = tombs.dynastyOptions.find(x => x.code === state.dynasty); chip.style.background = d.color + '33'; chip.style.color = '#fff'; }
+    else { state.dynasty = null; chip.style.color = '#fff'; }
+    writeFilters();
+    render();
+  });
 
-      let keptIds = new Set(depthOf.keys());
-      if (keptIds.size > MAX_NODES) {
-        const ranked = [...depthOf.entries()].sort((a, b) => {
-          const na = nodeMap.get(a[0]);
-          const nb = nodeMap.get(b[0]);
-          if (a[0] === centerId) return -1;
-          if (b[0] === centerId) return 1;
-          const ea = na && na.type === 'emperor' ? 0 : 1;
-          const eb = nb && nb.type === 'emperor' ? 0 : 1;
-          if (ea !== eb) return ea - eb;
-          return a[1] - b[1];
-        });
-        keptIds = new Set(ranked.slice(0, MAX_NODES).map(([id]) => id));
-      }
+  // 竖向滚轮默认只滚整页，而这一排有 2539px 宽：不转成横向滚动的话，
+  // 不去拖那条 5px 的细滚动条就看不到后面的朝代。
+  filters.addEventListener('wheel', e => {
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+    const before = filters.scrollLeft;
+    filters.scrollLeft = before + e.deltaY;
+    if (filters.scrollLeft !== before) e.preventDefault();
+  }, { passive: false });
 
-      return {
-        nodes: [...keptIds].map(id => nodeMap.get(id)).filter(Boolean),
-        edges: pickedEdges.filter(e => keptIds.has(e.source) && keptIds.has(e.target)),
-        depthOf
-      };
-    }
-
-    // build_star_map.js 已把 parent-child 边归一化为 source=长辈、target=晚辈，
-    // 故遍历方向即世代升降，可据此优先展示纯粹的直系上溯/下传链
-    function lineagePath(fromId, toId, types) {
-      const allowed = new Set(types);
-
-      const direct = (adjacency.get(fromId) || [])
-        .find(({ edge, other }) => other === toId && allowed.has(edge.relation));
-      if (direct) return [{ from: fromId, to: toId, edge: direct.edge }];
-
-      if (allowed.has('parent-child')) {
-        const descent = (edge, from) => edge.relation === 'parent-child' && edge.source === from;
-        const ascent = (edge, from) => edge.relation === 'parent-child' && edge.target === from;
-        return bfsPath(fromId, toId, descent)
-            || bfsPath(fromId, toId, ascent)
-            || bfsPath(fromId, toId, edge => allowed.has(edge.relation));
-      }
-      return bfsPath(fromId, toId, edge => allowed.has(edge.relation));
-    }
-
-    function bfsPath(fromId, toId, accept) {
-      const prev = new Map([[fromId, null]]);
-      const queue = [fromId];
-      while (queue.length) {
-        const id = queue.shift();
-        if (id === toId) break;
-        for (const { edge, other } of adjacency.get(id) || []) {
-          if (!accept(edge, id, other) || prev.has(other)) continue;
-          prev.set(other, { from: id, edge });
-          queue.push(other);
-        }
-      }
-      if (!prev.has(toId)) return null;
-      const steps = [];
-      let cur = toId;
-      while (prev.get(cur)) {
-        steps.unshift({ from: prev.get(cur).from, to: cur, edge: prev.get(cur).edge });
-        cur = prev.get(cur).from;
-      }
-      return steps;
-    }
-
-    function searchEmperors(keyword) {
-      const emperors = starMap.nodes.filter(n => n.type === 'emperor');
-      if (!keyword) return emperors;
-      return emperors.filter(n =>
-        n.name.includes(keyword) ||
-        (n.full_name && n.full_name.includes(keyword)) ||
-        n.dynasty.includes(keyword)
-      );
-    }
-
-    function updateView() {
-      const emperor = nodeMap.get(selectedId);
-      const types = RELATION_FILTERS[filterIndex].types;
-      const relations = getDirectEdges(selectedId, types).map(edge => {
-        const isSource = edge.source === selectedId;
-        const otherId = isSource ? edge.target : edge.source;
-        const other = nodeMap.get(otherId);
-        return { edge, other, role: isSource ? edge.target_role : edge.source_role };
-      });
-
-      currentSubgraph = getNeighborSubgraph(selectedId, types, depth);
-
-      document.getElementById('infoName').textContent = emperor.name;
-      document.getElementById('infoMeta').textContent = `${emperor.full_name} · ${emperor.dynasty}` +
-        (emperor.birth_year ? ` · ${emperor.birth_year.era === 'BCE' ? '前' : ''}${emperor.birth_year.value}–${emperor.death_year.era === 'BCE' ? '前' : ''}${emperor.death_year.value}` : '');
-      document.getElementById('infoCount').textContent =
-        `直接关联 ${relations.length} 人 · 星图显示 ${depth} 代共 ${currentSubgraph.nodes.length} 人`;
-
-      // 反查走 utils/tombs.js 那一份连接表；没连上就不给入口（不是"点了没反应"）
-      const tombId = TOMBS.tombOf(selectedId);
-      const tRec = tombId ? TOMBS.byId.get(tombId) : null;
-      const slot = document.getElementById('infoTomb');
-      slot.textContent = '';
-      if (tombId) {
-        const a = document.createElement('a');
-        a.className = 'tomb-link';
-        a.href = 'tombs.html?tomb=' + encodeURIComponent(tombId);
-        a.textContent = window.I18N.ui('zh').starBackCta + '：' + (tRec ? tRec.name_cn : tombId);
-        slot.appendChild(a);
-      }
-
-      renderRelationList(relations);
-      renderLineage(types);
-      renderEmperorList(searchEmperors(document.getElementById('searchInput').value));
-      computeLayoutAndDraw();
-    }
-
-    function renderLineage(types) {
-      const list = document.getElementById('lineageList');
-      const others = currentSubgraph.nodes.filter(
-        n => n.type === 'emperor' && n.id !== selectedId
-      );
-
-      if (others.length === 0) {
-        list.innerHTML = `<div class="subtitle">当前 ${depth} 代范围内没有其他皇帝，可提高世代数</div>`;
-        return;
-      }
-
-      const rows = others.map(other => {
-        const steps = lineagePath(selectedId, other.id, types) || [];
-        const parts = [nodeMap.get(selectedId).name];
-        for (const s of steps) {
-          const forward = s.edge.source === s.from;
-          const role = forward ? s.edge.target_role : s.edge.source_role;
-          parts.push({ role: role || s.edge.label, name: nodeMap.get(s.to).name });
-        }
-        const chain = parts.map((p, i) => i === 0
-          ? p
-          : `<span class="lineage-arrow">→</span><span class="lineage-rel">${p.role}</span>${p.name}`
-        ).join('');
-        return `
-          <div class="list-item" data-id="${other.id}">
-            <div>
-              <div class="list-title">${other.name}</div>
-              <div class="lineage-chain">${chain}</div>
-            </div>
-            <span class="tag tag-emperor">${steps.length} 代</span>
-          </div>`;
-      }).join('');
-
-      list.innerHTML = rows;
-      list.querySelectorAll('.list-item').forEach(item => {
-        item.addEventListener('click', () => {
-          selectedId = item.dataset.id;
-          updateView();
-        });
-      });
-    }
-
-    function renderRelationList(relations) {
-      const list = document.getElementById('relationList');
-      if (relations.length === 0) {
-        list.innerHTML = '<div class="subtitle">当前筛选下暂无关联</div>';
-        return;
-      }
-      list.innerHTML = relations.map(r => `
-        <div class="list-item" data-id="${r.other.id}">
-          <div>
-            <div class="list-title">${r.other.name}</div>
-            <div class="list-subtitle">${r.other.full_name || ''} ${r.other.dynasty ? '· ' + r.other.dynasty : ''}</div>
-            ${r.edge.provenance ? `<div class="list-subtitle">${r.edge.provenance}</div>` : ''}
-          </div>
-          <span class="tag tag-relation">${r.role}</span>
-        </div>
-      `).join('');
-      list.querySelectorAll('.list-item').forEach(item => {
-        item.addEventListener('click', () => {
-          const node = nodeMap.get(item.dataset.id);
-          if (!node || node.type !== 'emperor') return;
-          selectedId = item.dataset.id;
-          updateView();
-        });
-      });
-    }
-
-    function renderEmperorList(emperors) {
-      const list = document.getElementById('emperorList');
-      list.innerHTML = emperors.map(e => `
-        <div class="list-item" data-id="${e.id}">
-          <div>
-            <div class="list-title">${e.name}</div>
-            <div class="list-subtitle">${e.dynasty} · ${e.full_name}</div>
-          </div>
-          <span class="tag tag-emperor">查看</span>
-        </div>
-      `).join('');
-      list.querySelectorAll('.list-item').forEach(item => {
-        item.addEventListener('click', () => {
-          selectedId = item.dataset.id;
-          updateView();
-        });
-      });
-    }
-
-    function computeLayoutAndDraw() {
-      const canvas = document.getElementById('starCanvas');
-      const wrap = canvas.parentElement;
-      const dpr = window.devicePixelRatio || 1;
-      const width = wrap.clientWidth;
-      const height = wrap.clientHeight;
-      canvasCssSize = { width, height };
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-
-      positions = runForceLayout(selectedId, currentSubgraph.nodes, currentSubgraph.edges);
-      fitView(currentSubgraph.nodes);
-      draw();
-    }
-
-    function runForceLayout(centerId, nodes, edges) {
-      const positions = new Map();
-      positions.set(centerId, { x: 0, y: 0 });
-
-      const relatives = nodes.filter(n => n.id !== centerId);
-      const byDepth = new Map();
-      relatives.forEach(n => {
-        const d = currentSubgraph.depthOf.get(n.id) || 1;
-        if (!byDepth.has(d)) byDepth.set(d, []);
-        byDepth.get(d).push(n);
-      });
-      for (const [d, group] of byDepth) {
-        const angleStep = (Math.PI * 2) / Math.max(group.length, 1);
-        group.forEach((n, i) => {
-          const angle = i * angleStep - Math.PI / 2 + d * 0.35;
-          const r = 150 * d + (i % 4) * 22;
-          positions.set(n.id, { x: Math.cos(angle) * r, y: Math.sin(angle) * r });
-        });
-      }
-
-      const nodeList = nodes;
-      const k = 160;
-      const centerGravity = 0.004;
-      const iterations = 350;
-
-      for (let iter = 0; iter < iterations; iter++) {
-        const temp = 1 - iter / iterations;
-
-        for (let i = 0; i < nodeList.length; i++) {
-          const a = nodeList[i];
-          const pa = positions.get(a.id);
-          for (let j = i + 1; j < nodeList.length; j++) {
-            const b = nodeList[j];
-            const pb = positions.get(b.id);
-            let dx = pa.x - pb.x;
-            let dy = pa.y - pb.y;
-            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-            const force = (k * k) / (dist * dist) * 0.06 * temp;
-            const fx = (dx / dist) * force;
-            const fy = (dy / dist) * force;
-            if (a.id !== centerId) { pa.x += fx; pa.y += fy; }
-            if (b.id !== centerId) { pb.x -= fx; pb.y -= fy; }
-          }
-        }
-
-        edges.forEach(e => {
-          const pa = positions.get(e.source);
-          const pb = positions.get(e.target);
-          if (!pa || !pb) return;
-          let dx = pb.x - pa.x;
-          let dy = pb.y - pa.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const force = (dist - k * 0.7) * 0.003 * temp;
-          const fx = (dx / dist) * force;
-          const fy = (dy / dist) * force;
-          if (e.source !== centerId) { pa.x += fx; pa.y += fy; }
-          if (e.target !== centerId) { pb.x -= fx; pb.y -= fy; }
-        });
-
-        nodeList.forEach(n => {
-          if (n.id === centerId) return;
-          const p = positions.get(n.id);
-          p.x -= p.x * centerGravity * temp;
-          p.y -= p.y * centerGravity * temp;
-        });
-      }
-
-      return positions;
-    }
-
-    function fitView(nodes) {
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      nodes.forEach(n => {
-        const p = positions.get(n.id);
-        const r = nodeRadius(n) + 30;
-        minX = Math.min(minX, p.x - r);
-        minY = Math.min(minY, p.y - r);
-        maxX = Math.max(maxX, p.x + r);
-        maxY = Math.max(maxY, p.y + r);
-      });
-      const w = maxX - minX || 1;
-      const h = maxY - minY || 1;
-      const padding = 30;
-      const scale = Math.min(
-        (canvasCssSize.width - padding * 2) / w,
-        (canvasCssSize.height - padding * 2) / h,
-        1.6
-      );
-      const cx = (minX + maxX) / 2;
-      const cy = (minY + maxY) / 2;
-      view.scale = Math.max(scale, 0.25);
-      view.x = canvasCssSize.width / 2 - cx * view.scale;
-      view.y = canvasCssSize.height / 2 - cy * view.scale;
-    }
-
-    function draw() {
-      const canvas = document.getElementById('starCanvas');
-      const ctx = canvas.getContext('2d');
-      const width = canvasCssSize.width;
-      const height = canvasCssSize.height;
-      ctx.clearRect(0, 0, width, height);
-
-      ctx.save();
-      ctx.translate(view.x, view.y);
-      ctx.scale(view.scale, view.scale);
-
-      const subgraph = currentSubgraph;
-
-      subgraph.edges.forEach(edge => {
-        const p1 = positions.get(edge.source);
-        const p2 = positions.get(edge.target);
-        if (!p1 || !p2) return;
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.strokeStyle = RELATION_COLORS[edge.relation] || '#95a5a6';
-        ctx.lineWidth = edge.cross_validated && !edge.disputed ? 2.2 : 1.5;
-        ctx.globalAlpha = edge.disputed || edge.low_confidence ? 0.5 : 0.75;
-        ctx.setLineDash(edgeDash(edge));
-        ctx.stroke();
-        ctx.restore();
-      });
-
-      subgraph.nodes.forEach(node => {
-        const pos = positions.get(node.id);
-        if (!pos) return;
-        const isCenter = node.id === selectedId;
-        const r = nodeRadius(node);
-        const color = getNodeColor(node, selectedId);
-
-        ctx.beginPath();
-        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.shadowColor = 'rgba(0,0,0,0.4)';
-        ctx.shadowBlur = 6;
-        ctx.fill();
-        ctx.shadowBlur = 0;
-
-        if (isCenter) {
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2.5;
-          ctx.stroke();
-        } else {
-          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-
-        ctx.fillStyle = '#fff';
-        ctx.font = `${isCenter ? 'bold' : 'normal'} 13px sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        const displayName = node.name.length > 4 ? node.name.slice(0, 3) + '…' : node.name;
-        ctx.fillText(displayName, pos.x, pos.y + r + 14);
-      });
-
-      ctx.restore();
-    }
-
-    init().catch(err => {
-      document.body.innerHTML = `<div style="padding:20px;color:#e94560;">加载数据失败：${err.message}<br>请确保通过本地服务器访问本页面（如 npx serve 或 python -m http.server）。</div>`;
+  const sw = document.getElementById('switches');
+  [['doubtfulOnly', '只看存疑'], ['forgottenOnly', '被遗忘的帝陵']].forEach(([k, label]) => {
+    const b = document.createElement('div'); b.className = 'sw'; b.textContent = label;
+    b.dataset.dim = k;
+    b.addEventListener('click', () => {
+      state[k] = !state[k]; b.classList.toggle('on', state[k]); writeFilters(); render();
     });
-  </script>
+    sw.appendChild(b);
+  });
+  const resetSw = document.createElement('div');
+  resetSw.className = 'sw'; resetSw.textContent = '重置筛选'; resetSw.dataset.dim = '__reset';
+  resetSw.addEventListener('click', () => {
+    state.dynasty = null; state.doubtfulOnly = state.forgottenOnly = false;
+    state.accessTier = ''; state.radiusKm = tombs.NEIGHBOR_RADIUS_KM;
+    state.accOn = false; state.forgottenStrong = false;
+    state.nbFor = null;
+    writeFilters();
+    sw.querySelectorAll('.sw').forEach(x => x.classList.remove('on'));
+    filters.querySelectorAll('.chip').forEach(c => {
+      c.classList.remove('on'); c.style.background = 'rgba(255,255,255,.06)'; c.style.color = '#A9A496';
+    });
+    allChip.classList.add('on'); allChip.style.color = '#fff';
+    render();
+  });
+  // 文化图层两枚：陪葬墓（归属只认 parent_hint）与被遗忘的收紧档（硬信号≥2）
+  for (const [k, label] of [['accOn', `陪葬墓 ${tombs.accStats.attached}/${tombs.accStats.total}`],
+    ['forgottenStrong', `被遗忘·强 ${tombs.forgottenCount.strong}`]]) {
+    const b = document.createElement('div');
+    b.className = 'sw' + (state[k] ? ' on' : ''); b.textContent = label; b.dataset.dim = k;
+    b.addEventListener('click', () => {
+      state[k] = !state[k]; b.classList.toggle('on', state[k]);
+      if (k === 'forgottenStrong') { state.nbFor = null; }
+      writeFilters(); render();
+      if (state.sel) showTomb(state.sel);
+    });
+    sw.appendChild(b);
+  }
+  // F-01-6 开放状态 + F-04-3 半径档：选项、计数、文案一律取自 utils，两端不各写一份
+  for (const t of tombs.ACCESS_TIERS.slice(1)) {
+    const b = document.createElement('div');
+    b.className = 'sw' + (state.accessTier === t.key ? ' on' : '');
+    b.textContent = `${t.label} ${tombs.counts.accessTiers[t.key]}`;
+    b.dataset.tier = t.key;
+    b.addEventListener('click', () => {
+      state.accessTier = state.accessTier === t.key ? '' : t.key;
+      state.nbFor = null; writeFilters(); syncTierSw(); render();
+    });
+    sw.appendChild(b);
+  }
+  for (const km of tombs.NEIGHBOR_RADIUS_OPTIONS) {
+    const b = document.createElement('div');
+    b.className = 'sw' + (tombs.normRadius(state.radiusKm) === km ? ' on' : '');
+    b.textContent = `邻居 ${km}km`; b.dataset.radius = String(km);
+    b.addEventListener('click', () => {
+      state.radiusKm = km; state.nbFor = null;
+      writeFilters();
+      sw.querySelectorAll('.sw[data-radius]').forEach(x =>
+        x.classList.toggle('on', Number(x.dataset.radius) === km));
+      if (state.sel) showTomb(state.sel);
+      render();
+    });
+    sw.appendChild(b);
+  }
+  function syncTierSw() {
+    sw.querySelectorAll('.sw[data-tier]').forEach(x =>
+      x.classList.toggle('on', x.dataset.tier === state.accessTier));
+  }
+  sw.appendChild(resetSw);
+
+  const nbBtn = document.createElement('div');
+  nbBtn.className = 'sw'; nbBtn.textContent = '离我最近的帝陵';
+  nbBtn.addEventListener('click', () => {
+    const saved = readSaved();
+    const hit = saved && places.byAdcode.get(Number(saved.adcode));
+    state.pick = hit ? places.chainOf(Number(saved.adcode)).map(r => r.a) : [];
+    state.sel = null; state.group = null; state.nbFor = null;
+    panel.innerHTML = panelHome(); render();
+  });
+  sw.appendChild(nbBtn);
+
+  // 拖拽平移 + 滚轮缩放
+  let drag = null;
+  svg.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, lng: view.lng, lat: view.lat }; svg.classList.add('dragging'); });
+  window.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const { w, h } = dims();
+    const c = bbox();
+    view.lng = drag.lng - (e.clientX - drag.x) / w * view.lonSpan;
+    view.lat = drag.lat + (e.clientY - drag.y) / h * (c.latMax - c.latMin);
+    render();
+  });
+  window.addEventListener('pointerup', () => { drag = null; svg.classList.remove('dragging'); });
+  // 镜像最深视野。原来的 6° 是随手定的，换算成微信 <map> 只到 scale 7.7
+  // （lonSpan = 360·w / (256·2^scale)，w=900px 时 6° ≈ scale 7.7），远够不到原生底图的
+  // scale 20，所以感觉"放不动"。0.02° 在 900px 宽下约等于 scale 16.5，再深就没有几何可看了。
+  const MIN_LON_SPAN = 0.02;
+  function zoom(f) {
+    view.lonSpan = Math.min(70, Math.max(MIN_LON_SPAN, view.lonSpan * f));
+    render();
+  }
+  wrap.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY > 0 ? 1.15 : 0.87); }, { passive: false });
+  document.getElementById('zin').addEventListener('click', () => zoom(0.75));
+  document.getElementById('zout').addEventListener('click', () => zoom(1.33));
+  window.addEventListener('resize', render);
+
+  // 继承来的筛选必须刷到 UI 上：开关的 on 样式原本只在点击时改，
+  // 只灌值不刷样式的话，页面看着像没筛——那是一个会说谎的状态显示。
+  for (const k of ['doubtfulOnly', 'forgottenOnly']) {
+    const b = sw.querySelector('.sw[data-dim="' + k + '"]');
+    if (b) b.classList.toggle('on', !!state[k]);
+  }
+  if (state.dynasty) {
+    const chip = filters.querySelector('.chip[data-code="' + state.dynasty + '"]');
+    if (chip) {
+      filters.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+      chip.classList.add('on');
+      const d = tombs.dynastyOptions.find(x => x.code === state.dynasty);
+      if (d) { chip.style.background = d.color + '33'; chip.style.color = '#fff'; }
+    }
+  }
+
+  // F-06 检索：结果行一律走 data-tomb，复用已有的事件委托（内联 onclick 调不到 IIFE 里的函数）
+  const SRCH = window.Search.createSearch(tombs);
+  const qInput = document.getElementById('q');
+  function renderSearch() {
+    const q = qInput.value.trim();
+    if (!q) { panel.innerHTML = panelHome(); render(); return; }
+    const hits = SRCH.search(q);
+    panel.innerHTML = `
+      <h2>检索「${esc(q)}」</h2>
+      <div class="meta">命中 ${hits.length} 座${hits.length >= SRCH.LIMIT ? `（已达显示上限 ${SRCH.LIMIT}，请缩小关键词）` : ''}
+        ｜档位优先：陵名 &gt; 皇帝称谓 &gt; 朝代·政权 &gt; 地名</div>
+      ${hits.length ? `<ul class="nblist">${hits.map(h => `
+        <li data-tomb="${esc(h.id)}">
+          <span><b>${esc(h.name)}</b>${h.approx ? ` <span class="tag approx">${esc(window.I18N.ui('zh').approxShort)}</span>` : ''}${!h.hasCoord ? ` <span class="tag approx">${esc(window.I18N.ui('zh').noCoordShort)}</span>` : ''}
+            <span class="sub">${esc(h.state)}｜${esc(h.place)}</span></span>
+          <b class="km">${esc(h.tierLabel)}</b>
+        </li>`).join('')}</ul>`
+        : `<p class="hint">${esc(SRCH.NO_RESULT)}</p>`}`;
+    panel.scrollTop = 0;
+  }
+  qInput.addEventListener('input', renderSearch);
+  document.getElementById('qclear').addEventListener('click', () => { qInput.value = ''; renderSearch(); });
+
+  // 从时间轴点进来的深链：?tomb=<id> 直接落到那座陵的摘要卡
+  const deep = new URLSearchParams(location.search).get('tomb');
+  if (deep && tombs.byId.has(deep)) { state.sel = deep; state.group = null; state.nbFor = null; }
+
+  document.getElementById('panel').innerHTML = state.sel ? '' : panelHome();
+  if (state.sel) showTomb(state.sel);
+  document.getElementById('geolegend').textContent = tombs.GEO_LEGEND;
+  render();
+})();
+</script>
 </body>
 </html>

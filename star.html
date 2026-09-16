@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>皇帝人物星图</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #16213e;
+      color: #eaeaea;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      line-height: 1.6;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .search-input {
+      width: 100%;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #fff;
+      font-size: 15px;
+      margin-bottom: 12px;
+    }
+    .search-input::placeholder { color: #7f8c8d; }
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .filter-item {
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 13px;
+      background: rgba(255,255,255,0.1);
+      color: #a0a0a0;
+      cursor: pointer;
+      border: none;
+    }
+    .filter-item.active {
+      background: rgba(233,69,96,0.3);
+      color: #e94560;
+    }
+    .filter-sep {
+      align-self: center;
+      font-size: 12px;
+      color: #6f7b8d;
+      margin-left: 4px;
+    }
+    .depth-item.active {
+      background: rgba(79,172,254,0.28);
+      color: #4facfe;
+    }
+    .canvas-wrap {
+      width: 100%;
+      height: 420px;
+      background: rgba(0,0,0,0.2);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+      touch-action: none;
+    }
+    #starCanvas { width: 100%; height: 100%; display: block; cursor: grab; }
+    #starCanvas:active { cursor: grabbing; }
+    .legend {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(22,33,62,0.85);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      max-width: 220px;
+      pointer-events: none;
+    }
+    .legend-title { color: #fff; font-weight: 600; margin-bottom: 6px; }
+    .legend-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .legend-note { margin-top: 6px; font-size: 11px; line-height: 1.55; color: #8f9aa8; }
+    .legend-line { width: 16px; height: 2px; flex-shrink: 0; }
+    .legend-line--style { width: 34px; }
+    .hint {
+      position: absolute;
+      bottom: 8px;
+      right: 10px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.4);
+      pointer-events: none;
+    }
+    .card {
+      background: rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .title { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #a0a0a0; margin-bottom: 4px; }
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-right: 8px;
+    }
+    .tag-emperor { background: rgba(233,69,96,0.2); color: #e94560; }
+    .tag-relative { background: rgba(79,172,254,0.2); color: #4facfe; }
+    .tag-relation { background: rgba(255,193,7,0.2); color: #ffc107; }
+    .list-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      cursor: pointer;
+    }
+    .list-item:last-child { border-bottom: none; }
+    .list-item:hover { background: rgba(255,255,255,0.03); }
+    .list-title { font-size: 16px; color: #fff; }
+    .list-subtitle { font-size: 13px; color: #a0a0a0; }
+    .lineage-chain { font-size: 12px; color: #a0a0a0; margin-top: 2px; }
+    .lineage-rel {
+      color: #ffc107;
+      margin: 0 4px;
+      font-size: 11px;
+    }
+    .lineage-arrow { opacity: 0.6; margin-left: 6px; }
+    .hidden { display: none; }
+    /* 三视图导航条：与 index.html 同一套外观 */
+    .viewswitch { display: flex; gap: 4px; padding: 10px 12px 8px; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .viewswitch a {
+      flex: 1; text-align: center; padding: 8px 0; font-size: 14px; text-decoration: none;
+      color: #8B897F; border-radius: 8px; background: rgba(255,255,255,.04);
+    }
+    .viewswitch a.on { color: #F0DFA8; background: rgba(212,160,23,.16); }
+    .focus-miss { padding: 8px 14px; font-size: 12px; color: #E07A5F; }
+    .tomb-link { display: block; margin-top: 8px; padding: 8px 0; text-align: center;
+      font-size: 13px; text-decoration: none; color: #F0DFA8;
+      background: rgba(212,160,23,.14); border: 1px solid rgba(212,160,23,.4); border-radius: 8px; }
+    .link-note { margin-top: 6px; font-size: 11px; line-height: 1.55; color: #8f9aa8; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="viewswitch">
+      <a href="index.html">帝陵地图</a>
+      <a href="timeline.html">时间轴</a>
+      <a class="on" href="star.html">人物星图</a>
+      <a href="compare.html">皇帝对比卡</a>
+    </nav>
+    <div class="focus-miss" id="focusmiss" hidden></div>
+    <input type="text" id="searchInput" class="search-input" placeholder="搜索皇帝姓名、字号或朝代">
+
+    <div class="filter-bar" id="filterBar"></div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="starCanvas"></canvas>
+      <div class="legend" id="legend"></div>
+      <div class="hint">拖拽移动 · 滚轮缩放 · 点击节点</div>
+    </div>
+
+    <div class="card" id="infoCard">
+      <div class="title" id="infoName">-</div>
+      <div class="subtitle" id="infoMeta">-</div>
+      <div class="subtitle" id="infoCount">-</div>
+      <span id="infoTomb"></span>
+    </div>
+
+    <div class="card">
+      <div class="title">世系链</div>
+      <div class="subtitle" id="lineageHint">当前世代范围内可达的其他皇帝</div>
+      <div id="lineageList"></div>
+    </div>
+
+    <div class="card">
+      <div class="title">关联人物</div>
+      <div id="relationList"></div>
+    </div>
+
+    <div class="card">
+      <div class="title">皇帝列表</div>
+      <div id="emperorList"></div>
+    </div>
+  </div>
+
+  <script src="star_map_data.js"></script>
+  <script src="utils/geo.js"></script>
+  <script src="utils/tomb_data.js"></script>
+  <script src="utils/emperor_link.js"></script>
+  <script src="utils/emperor_bio.js"></script>
+  <script src="utils/lords.js"></script>
+<script src="utils/wiki_bio.js"></script>
+  <script src="utils/tombs.js"></script>
+  <script src="utils/i18n.js"></script>
+  <script src="utils/graph_note.js"></script>
+  <script>
+    // 帝陵↔星图的连接表只有一份（utils/tombs.js 里，含"一人多陵就抛错"那道闸）；
+    // 子包/镜像都引它，不许在本页再拼一遍反查。
+    const TOMBS = window.Tombs.createTombs(window.__TOMB_DATA__);
+    // 筛选条与四色一一对应，避免出现「一个按钮三种颜色」
+    const RELATION_FILTERS = [
+      { key: 'all', label: '全部', types: ['parent-child', 'sibling', 'spouse', 'inlaw', 'other'] },
+      { key: 'parent-child', label: '直系', types: ['parent-child'] },
+      { key: 'sibling', label: '兄弟', types: ['sibling'] },
+      { key: 'affinal', label: '配偶·姻亲', types: ['spouse', 'inlaw'] },
+      { key: 'other', label: '其他', types: ['other'] }
+    ];
+
+    // 连线配色规则（用户指定，不可随意改动）：
+    //   1. 兄弟姐妹        → 蓝
+    //   2. 父子 / 母子     → 红
+    //   3. 配偶 / 姻亲     → 黄
+    //   4. 其他            → 灰
+    const RELATION_COLORS = {
+      'sibling': '#4facfe',
+      'parent-child': '#e94560',
+      'spouse': '#ffd93d',
+      'inlaw': '#ffd93d',
+      'other': '#95a5a6'
+    };
+
+    // 图例按上述四条规则呈现：spouse 与 inlaw 同色，合为一行。
+    const EDGE_LEGEND = [
+      { key: 'sibling', color: '#4facfe', label: '兄弟姐妹' },
+      { key: 'parent-child', color: '#e94560', label: '父子 / 母子 / 祖孙' },
+      { key: 'affinal', color: '#ffd93d', label: '配偶 / 姻亲' },
+      { key: 'other', color: '#95a5a6', label: '其他' }
+    ];
+
+    // 线型表达出处，颜色只表达关系（四色是硬规则，不再分配新颜色给新数据源）：
+    //   实线 = CBDB 原载；虚线 = CBDB 缺载、据 Wikidata 补；
+    //   点线 = 补充且条目仅靠弱匹配确定；点划线 = 两源给出的父母不一致（存疑）。
+    const LINE_STYLE_LEGEND = [
+      { css: 'background:#e8eef5;', label: '实线：CBDB 原载（加粗 = 与 Wikidata 互证）' },
+      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 6px,transparent 6px 10px);', label: '虚线：CBDB 缺载，据 Wikidata 补入' },
+      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 2px,transparent 2px 5px);', label: '点线：补入且人物匹配存疑' },
+      { css: 'background:repeating-linear-gradient(90deg,#e8eef5 0 8px,transparent 8px 11px,#e8eef5 11px 13px,transparent 13px 16px);', label: '点划线：两源记载的父母不一致' }
+    ];
+
+    function edgeDash(edge) {
+      if (edge.disputed) return [8, 3, 2, 3];
+      if (edge.origin === 'supplement') return edge.low_confidence ? [2, 3] : [6, 4];
+      return [];
+    }
+
+    function getNodeColor(node, centerId) {
+      if (node.id === centerId) return '#e94560';
+      return node.type === 'emperor' ? '#4facfe' : '#95a5a6';
+    }
+
+    let starMap = null;
+    let nodeMap = null;
+    let adjacency = null;
+    let selectedId = 'li-shimin';
+    let filterIndex = 0;
+    let depth = 2;
+    const MAX_DEPTH = 3;
+    const MAX_NODES = 90;
+    let currentSubgraph = { nodes: [], edges: [], depthOf: new Map() };
+
+    let positions = new Map();
+    let view = { scale: 1, x: 0, y: 0 };
+    let isPanning = false;
+    let panStart = { x: 0, y: 0, viewX: 0, viewY: 0 };
+    let canvasCssSize = { width: 0, height: 0 };
+
+    function buildAdjacency() {
+      adjacency = new Map(starMap.nodes.map(n => [n.id, []]));
+      for (const e of starMap.edges) {
+        const s = adjacency.get(e.source);
+        const t = adjacency.get(e.target);
+        if (s) s.push({ edge: e, other: e.target });
+        if (t) t.push({ edge: e, other: e.source });
+      }
+    }
+
+    // 连线颜色只表达关系四色，出处改用线型 + 这枚文字标签（PRD §9.1：每个事实都要能追溯到来源）。
+    function annotateProvenance() {
+      for (const e of starMap.edges) {
+        e.provenance = e.disputed ? '存疑：两源记载不一'
+          : e.origin === 'supplement' ? (e.low_confidence ? '存疑：据 Wikidata 补' : '据 Wikidata 补')
+            : e.cross_validated ? '两源互证' : '';
+      }
+    }
+
+    async function init() {
+      starMap = window.__STAR_DATA__;
+      if (!starMap) {
+        document.body.innerHTML = '<p style="padding:24px;color:#e94560">数据未加载：请先运行 node build_star_map.js 生成 star_map_data.js</p>';
+        return;
+      }
+      nodeMap = new Map(starMap.nodes.map(n => [n.id, n]));
+      // 帝陵侧的深链：?focus=<星图节点 id>。找不到就明说——静默回到默认中心，
+      // 读者会以为屏幕上这张网属于他刚点的那座陵。
+      const focus = new URLSearchParams(location.search).get('focus');
+      if (focus) {
+        const hit = nodeMap.get(focus);
+        if (hit && hit.type === 'emperor') selectedId = focus;
+        else {
+          const box = document.getElementById('focusmiss');
+          box.hidden = false;
+          box.textContent = window.GraphNote.FOCUS_MISS;
+        }
+      }
+      annotateProvenance();
+      buildAdjacency();
+
+      renderFilters();
+      renderLegend();
+      bindEvents();
+      updateView();
+    }
+
+    function bindEvents() {
+      document.getElementById('searchInput').addEventListener('input', e => {
+        renderEmperorList(searchEmperors(e.target.value));
+      });
+      window.addEventListener('resize', () => updateView());
+      bindCanvasEvents();
+    }
+
+    function bindCanvasEvents() {
+      const canvas = document.getElementById('starCanvas');
+
+      canvas.addEventListener('pointerdown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const world = screenToWorld(x, y);
+        const hit = hitTest(world.x, world.y);
+
+        if (hit && hit.type === 'emperor') {
+          selectedId = hit.id;
+          updateView();
+          return;
+        }
+
+        isPanning = true;
+        panStart = { x: e.clientX, y: e.clientY, viewX: view.x, viewY: view.y };
+        canvas.setPointerCapture(e.pointerId);
+      });
+
+      canvas.addEventListener('pointermove', e => {
+        if (!isPanning) return;
+        const dx = e.clientX - panStart.x;
+        const dy = e.clientY - panStart.y;
+        view.x = panStart.viewX + dx;
+        view.y = panStart.viewY + dy;
+        draw();
+      });
+
+      canvas.addEventListener('pointerup', e => {
+        isPanning = false;
+        canvas.releasePointerCapture(e.pointerId);
+      });
+
+      canvas.addEventListener('pointerleave', e => {
+        isPanning = false;
+      });
+
+      canvas.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        const worldBefore = screenToWorld(sx, sy);
+        const zoomFactor = Math.exp(-e.deltaY * 0.0015);
+        const newScale = Math.min(Math.max(view.scale * zoomFactor, 0.2), 5);
+        view.x = sx - worldBefore.x * newScale;
+        view.y = sy - worldBefore.y * newScale;
+        view.scale = newScale;
+        draw();
+      }, { passive: false });
+    }
+
+    function screenToWorld(sx, sy) {
+      return {
+        x: (sx - view.x) / view.scale,
+        y: (sy - view.y) / view.scale
+      };
+    }
+
+    function nodeRadius(node) {
+      if (node.id === selectedId) return 24;
+      return node.type === 'emperor' ? 18 : 14;
+    }
+
+    function hitTest(wx, wy) {
+      let best = null;
+      let bestDist = Infinity;
+      for (const [id, pos] of positions) {
+        const node = nodeMap.get(id);
+        const r = nodeRadius(node);
+        const dx = pos.x - wx;
+        const dy = pos.y - wy;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist <= r + 6 && dist < bestDist) {
+          best = node;
+          bestDist = dist;
+        }
+      }
+      return best;
+    }
+
+    function renderFilters() {
+      const bar = document.getElementById('filterBar');
+      const relationButtons = RELATION_FILTERS.map((f, i) =>
+        `<button class="filter-item ${i === filterIndex ? 'active' : ''}" data-index="${i}">${f.label}</button>`
+      ).join('');
+      const depthButtons = [1, 2, 3].slice(0, MAX_DEPTH).map(d =>
+        `<button class="filter-item depth-item ${d === depth ? 'active' : ''}" data-depth="${d}">${d} 代</button>`
+      ).join('');
+      bar.innerHTML = relationButtons +
+        '<span class="filter-sep">世代</span>' + depthButtons;
+
+      bar.querySelectorAll('button[data-index]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          filterIndex = parseInt(btn.dataset.index, 10);
+          renderFilters();
+          updateView();
+        });
+      });
+      bar.querySelectorAll('button[data-depth]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          depth = parseInt(btn.dataset.depth, 10);
+          renderFilters();
+          updateView();
+        });
+      });
+    }
+
+    function renderLegend() {
+      const relationRows = EDGE_LEGEND.map(r =>
+        `<div class="legend-row"><span class="legend-line" style="background:${r.color}"></span><span>${r.label}</span></div>`
+      ).join('');
+      const styleRows = LINE_STYLE_LEGEND.map(r =>
+        `<div class="legend-row"><span class="legend-line legend-line--style" style="${r.css}"></span><span>${r.label}</span></div>`
+      ).join('');
+      const origin = {};
+      for (const n of starMap.nodes) origin[n.origin] = (origin[n.origin] || 0) + 1;
+      document.getElementById('legend').innerHTML = `
+        <div class="legend-title">关系</div>${relationRows}
+        <div class="legend-title">线型＝来源</div>${styleRows}
+        <div class="legend-note">${window.GraphNote.graphNote(starMap.meta, origin)}</div>
+        <div class="link-note">${window.GraphNote.tombLinkNote(TOMBS.BACKS, TOMBS.JUMPED, starMap.meta.emperor_count)}</div>
+      `;
+    }
+
+    function getDirectEdges(nodeId, types) {
+      return starMap.edges.filter(e => {
+        const match = e.source === nodeId || e.target === nodeId;
+        if (!match) return false;
+        if (!types || types.length === 0) return true;
+        return types.includes(e.relation);
+      });
+    }
+
+    function getNeighborSubgraph(centerId, types, maxDepth) {
+      const allowed = new Set(types);
+      const depthOf = new Map([[centerId, 0]]);
+      const pickedEdges = [];
+      const seenEdge = new Set();
+      let frontier = [centerId];
+
+      for (let d = 0; d < maxDepth; d++) {
+        const next = [];
+        for (const id of frontier) {
+          for (const { edge, other } of adjacency.get(id) || []) {
+            if (!allowed.has(edge.relation)) continue;
+            if (!seenEdge.has(edge.id)) {
+              seenEdge.add(edge.id);
+              pickedEdges.push(edge);
+            }
+            if (depthOf.has(other)) continue;
+            depthOf.set(other, d + 1);
+            next.push(other);
+          }
+        }
+        frontier = next;
+        if (!frontier.length) break;
+      }
+
+      let keptIds = new Set(depthOf.keys());
+      if (keptIds.size > MAX_NODES) {
+        const ranked = [...depthOf.entries()].sort((a, b) => {
+          const na = nodeMap.get(a[0]);
+          const nb = nodeMap.get(b[0]);
+          if (a[0] === centerId) return -1;
+          if (b[0] === centerId) return 1;
+          const ea = na && na.type === 'emperor' ? 0 : 1;
+          const eb = nb && nb.type === 'emperor' ? 0 : 1;
+          if (ea !== eb) return ea - eb;
+          return a[1] - b[1];
+        });
+        keptIds = new Set(ranked.slice(0, MAX_NODES).map(([id]) => id));
+      }
+
+      return {
+        nodes: [...keptIds].map(id => nodeMap.get(id)).filter(Boolean),
+        edges: pickedEdges.filter(e => keptIds.has(e.source) && keptIds.has(e.target)),
+        depthOf
+      };
+    }
+
+    // build_star_map.js 已把 parent-child 边归一化为 source=长辈、target=晚辈，
+    // 故遍历方向即世代升降，可据此优先展示纯粹的直系上溯/下传链
+    function lineagePath(fromId, toId, types) {
+      const allowed = new Set(types);
+
+      const direct = (adjacency.get(fromId) || [])
+        .find(({ edge, other }) => other === toId && allowed.has(edge.relation));
+      if (direct) return [{ from: fromId, to: toId, edge: direct.edge }];
+
+      if (allowed.has('parent-child')) {
+        const descent = (edge, from) => edge.relation === 'parent-child' && edge.source === from;
+        const ascent = (edge, from) => edge.relation === 'parent-child' && edge.target === from;
+        return bfsPath(fromId, toId, descent)
+            || bfsPath(fromId, toId, ascent)
+            || bfsPath(fromId, toId, edge => allowed.has(edge.relation));
+      }
+      return bfsPath(fromId, toId, edge => allowed.has(edge.relation));
+    }
+
+    function bfsPath(fromId, toId, accept) {
+      const prev = new Map([[fromId, null]]);
+      const queue = [fromId];
+      while (queue.length) {
+        const id = queue.shift();
+        if (id === toId) break;
+        for (const { edge, other } of adjacency.get(id) || []) {
+          if (!accept(edge, id, other) || prev.has(other)) continue;
+          prev.set(other, { from: id, edge });
+          queue.push(other);
+        }
+      }
+      if (!prev.has(toId)) return null;
+      const steps = [];
+      let cur = toId;
+      while (prev.get(cur)) {
+        steps.unshift({ from: prev.get(cur).from, to: cur, edge: prev.get(cur).edge });
+        cur = prev.get(cur).from;
+      }
+      return steps;
+    }
+
+    function searchEmperors(keyword) {
+      const emperors = starMap.nodes.filter(n => n.type === 'emperor');
+      if (!keyword) return emperors;
+      return emperors.filter(n =>
+        n.name.includes(keyword) ||
+        (n.full_name && n.full_name.includes(keyword)) ||
+        n.dynasty.includes(keyword)
+      );
+    }
+
+    function updateView() {
+      const emperor = nodeMap.get(selectedId);
+      const types = RELATION_FILTERS[filterIndex].types;
+      const relations = getDirectEdges(selectedId, types).map(edge => {
+        const isSource = edge.source === selectedId;
+        const otherId = isSource ? edge.target : edge.source;
+        const other = nodeMap.get(otherId);
+        return { edge, other, role: isSource ? edge.target_role : edge.source_role };
+      });
+
+      currentSubgraph = getNeighborSubgraph(selectedId, types, depth);
+
+      document.getElementById('infoName').textContent = emperor.name;
+      document.getElementById('infoMeta').textContent = `${emperor.full_name} · ${emperor.dynasty}` +
+        (emperor.birth_year ? ` · ${emperor.birth_year.era === 'BCE' ? '前' : ''}${emperor.birth_year.value}–${emperor.death_year.era === 'BCE' ? '前' : ''}${emperor.death_year.value}` : '');
+      document.getElementById('infoCount').textContent =
+        `直接关联 ${relations.length} 人 · 星图显示 ${depth} 代共 ${currentSubgraph.nodes.length} 人`;
+
+      // 反查走 utils/tombs.js 那一份连接表；没连上就不给入口（不是"点了没反应"）
+      const tombId = TOMBS.tombOf(selectedId);
+      const tRec = tombId ? TOMBS.byId.get(tombId) : null;
+      const slot = document.getElementById('infoTomb');
+      slot.textContent = '';
+      if (tombId) {
+        const a = document.createElement('a');
+        a.className = 'tomb-link';
+        a.href = 'index.html?tomb=' + encodeURIComponent(tombId);
+        a.textContent = window.I18N.ui('zh').starBackCta + '：' + (tRec ? tRec.name_cn : tombId);
+        slot.appendChild(a);
+      }
+
+      renderRelationList(relations);
+      renderLineage(types);
+      renderEmperorList(searchEmperors(document.getElementById('searchInput').value));
+      computeLayoutAndDraw();
+    }
+
+    function renderLineage(types) {
+      const list = document.getElementById('lineageList');
+      const others = currentSubgraph.nodes.filter(
+        n => n.type === 'emperor' && n.id !== selectedId
+      );
+
+      if (others.length === 0) {
+        list.innerHTML = `<div class="subtitle">当前 ${depth} 代范围内没有其他皇帝，可提高世代数</div>`;
+        return;
+      }
+
+      const rows = others.map(other => {
+        const steps = lineagePath(selectedId, other.id, types) || [];
+        const parts = [nodeMap.get(selectedId).name];
+        for (const s of steps) {
+          const forward = s.edge.source === s.from;
+          const role = forward ? s.edge.target_role : s.edge.source_role;
+          parts.push({ role: role || s.edge.label, name: nodeMap.get(s.to).name });
+        }
+        const chain = parts.map((p, i) => i === 0
+          ? p
+          : `<span class="lineage-arrow">→</span><span class="lineage-rel">${p.role}</span>${p.name}`
+        ).join('');
+        return `
+          <div class="list-item" data-id="${other.id}">
+            <div>
+              <div class="list-title">${other.name}</div>
+              <div class="lineage-chain">${chain}</div>
+            </div>
+            <span class="tag tag-emperor">${steps.length} 代</span>
+          </div>`;
+      }).join('');
+
+      list.innerHTML = rows;
+      list.querySelectorAll('.list-item').forEach(item => {
+        item.addEventListener('click', () => {
+          selectedId = item.dataset.id;
+          updateView();
+        });
+      });
+    }
+
+    function renderRelationList(relations) {
+      const list = document.getElementById('relationList');
+      if (relations.length === 0) {
+        list.innerHTML = '<div class="subtitle">当前筛选下暂无关联</div>';
+        return;
+      }
+      list.innerHTML = relations.map(r => `
+        <div class="list-item" data-id="${r.other.id}">
+          <div>
+            <div class="list-title">${r.other.name}</div>
+            <div class="list-subtitle">${r.other.full_name || ''} ${r.other.dynasty ? '· ' + r.other.dynasty : ''}</div>
+            ${r.edge.provenance ? `<div class="list-subtitle">${r.edge.provenance}</div>` : ''}
+          </div>
+          <span class="tag tag-relation">${r.role}</span>
+        </div>
+      `).join('');
+      list.querySelectorAll('.list-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const node = nodeMap.get(item.dataset.id);
+          if (!node || node.type !== 'emperor') return;
+          selectedId = item.dataset.id;
+          updateView();
+        });
+      });
+    }
+
+    function renderEmperorList(emperors) {
+      const list = document.getElementById('emperorList');
+      list.innerHTML = emperors.map(e => `
+        <div class="list-item" data-id="${e.id}">
+          <div>
+            <div class="list-title">${e.name}</div>
+            <div class="list-subtitle">${e.dynasty} · ${e.full_name}</div>
+          </div>
+          <span class="tag tag-emperor">查看</span>
+        </div>
+      `).join('');
+      list.querySelectorAll('.list-item').forEach(item => {
+        item.addEventListener('click', () => {
+          selectedId = item.dataset.id;
+          updateView();
+        });
+      });
+    }
+
+    function computeLayoutAndDraw() {
+      const canvas = document.getElementById('starCanvas');
+      const wrap = canvas.parentElement;
+      const dpr = window.devicePixelRatio || 1;
+      const width = wrap.clientWidth;
+      const height = wrap.clientHeight;
+      canvasCssSize = { width, height };
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+
+      positions = runForceLayout(selectedId, currentSubgraph.nodes, currentSubgraph.edges);
+      fitView(currentSubgraph.nodes);
+      draw();
+    }
+
+    function runForceLayout(centerId, nodes, edges) {
+      const positions = new Map();
+      positions.set(centerId, { x: 0, y: 0 });
+
+      const relatives = nodes.filter(n => n.id !== centerId);
+      const byDepth = new Map();
+      relatives.forEach(n => {
+        const d = currentSubgraph.depthOf.get(n.id) || 1;
+        if (!byDepth.has(d)) byDepth.set(d, []);
+        byDepth.get(d).push(n);
+      });
+      for (const [d, group] of byDepth) {
+        const angleStep = (Math.PI * 2) / Math.max(group.length, 1);
+        group.forEach((n, i) => {
+          const angle = i * angleStep - Math.PI / 2 + d * 0.35;
+          const r = 150 * d + (i % 4) * 22;
+          positions.set(n.id, { x: Math.cos(angle) * r, y: Math.sin(angle) * r });
+        });
+      }
+
+      const nodeList = nodes;
+      const k = 160;
+      const centerGravity = 0.004;
+      const iterations = 350;
+
+      for (let iter = 0; iter < iterations; iter++) {
+        const temp = 1 - iter / iterations;
+
+        for (let i = 0; i < nodeList.length; i++) {
+          const a = nodeList[i];
+          const pa = positions.get(a.id);
+          for (let j = i + 1; j < nodeList.length; j++) {
+            const b = nodeList[j];
+            const pb = positions.get(b.id);
+            let dx = pa.x - pb.x;
+            let dy = pa.y - pb.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const force = (k * k) / (dist * dist) * 0.06 * temp;
+            const fx = (dx / dist) * force;
+            const fy = (dy / dist) * force;
+            if (a.id !== centerId) { pa.x += fx; pa.y += fy; }
+            if (b.id !== centerId) { pb.x -= fx; pb.y -= fy; }
+          }
+        }
+
+        edges.forEach(e => {
+          const pa = positions.get(e.source);
+          const pb = positions.get(e.target);
+          if (!pa || !pb) return;
+          let dx = pb.x - pa.x;
+          let dy = pb.y - pa.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const force = (dist - k * 0.7) * 0.003 * temp;
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          if (e.source !== centerId) { pa.x += fx; pa.y += fy; }
+          if (e.target !== centerId) { pb.x -= fx; pb.y -= fy; }
+        });
+
+        nodeList.forEach(n => {
+          if (n.id === centerId) return;
+          const p = positions.get(n.id);
+          p.x -= p.x * centerGravity * temp;
+          p.y -= p.y * centerGravity * temp;
+        });
+      }
+
+      return positions;
+    }
+
+    function fitView(nodes) {
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach(n => {
+        const p = positions.get(n.id);
+        const r = nodeRadius(n) + 30;
+        minX = Math.min(minX, p.x - r);
+        minY = Math.min(minY, p.y - r);
+        maxX = Math.max(maxX, p.x + r);
+        maxY = Math.max(maxY, p.y + r);
+      });
+      const w = maxX - minX || 1;
+      const h = maxY - minY || 1;
+      const padding = 30;
+      const scale = Math.min(
+        (canvasCssSize.width - padding * 2) / w,
+        (canvasCssSize.height - padding * 2) / h,
+        1.6
+      );
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      view.scale = Math.max(scale, 0.25);
+      view.x = canvasCssSize.width / 2 - cx * view.scale;
+      view.y = canvasCssSize.height / 2 - cy * view.scale;
+    }
+
+    function draw() {
+      const canvas = document.getElementById('starCanvas');
+      const ctx = canvas.getContext('2d');
+      const width = canvasCssSize.width;
+      const height = canvasCssSize.height;
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.save();
+      ctx.translate(view.x, view.y);
+      ctx.scale(view.scale, view.scale);
+
+      const subgraph = currentSubgraph;
+
+      subgraph.edges.forEach(edge => {
+        const p1 = positions.get(edge.source);
+        const p2 = positions.get(edge.target);
+        if (!p1 || !p2) return;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = RELATION_COLORS[edge.relation] || '#95a5a6';
+        ctx.lineWidth = edge.cross_validated && !edge.disputed ? 2.2 : 1.5;
+        ctx.globalAlpha = edge.disputed || edge.low_confidence ? 0.5 : 0.75;
+        ctx.setLineDash(edgeDash(edge));
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      subgraph.nodes.forEach(node => {
+        const pos = positions.get(node.id);
+        if (!pos) return;
+        const isCenter = node.id === selectedId;
+        const r = nodeRadius(node);
+        const color = getNodeColor(node, selectedId);
+
+        ctx.beginPath();
+        ctx.arc(pos.x, pos.y, r, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.shadowColor = 'rgba(0,0,0,0.4)';
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        if (isCenter) {
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 2.5;
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+
+        ctx.fillStyle = '#fff';
+        ctx.font = `${isCenter ? 'bold' : 'normal'} 13px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const displayName = node.name.length > 4 ? node.name.slice(0, 3) + '…' : node.name;
+        ctx.fillText(displayName, pos.x, pos.y + r + 14);
+      });
+
+      ctx.restore();
+    }
+
+    init().catch(err => {
+      document.body.innerHTML = `<div style="padding:20px;color:#e94560;">加载数据失败：${err.message}<br>请确保通过本地服务器访问本页面（如 npx serve 或 python -m http.server）。</div>`;
+    });
+  </script>
+</body>
+</html>

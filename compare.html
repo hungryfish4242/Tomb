@@ -55,9 +55,9 @@
 </head>
 <body>
 <header>
-  <a class="nav" href="tombs.html">地图</a>
+  <a class="nav" href="index.html">地图</a>
   <a class="nav" href="timeline.html">时间轴</a>
-  <a class="nav" href="index.html">星图</a>
+  <a class="nav" href="star.html">星图</a>
   <a class="nav on" href="compare.html">对比</a>
   <span id="lang"></span>
   <span class="cnt" id="cnt"></span>
@@ -159,7 +159,7 @@
     document.getElementById('clear').textContent = ui.compareClear;
     document.getElementById('clear').hidden = !v.columns.length;
     document.getElementById('note').textContent = v.note
-      + '　本预览里「详情」与「地图」落在同一页（tombs.html 的抽屉），所以每列只给一个入口；'
+      + '　本预览里「详情」与「地图」落在同一页（index.html 的抽屉），所以每列只给一个入口；'
       + '小程序端是三个去处（详情页／星图／地图定位）。'
       + (uiLang === 'en' ? ' ' + ui.langNotice : '');
     document.getElementById('msg').textContent = flash || v.need || '';
@@ -184,9 +184,9 @@
       if (c.nameEn) head.appendChild(el('span', 'en', c.nameEn));
       const acts = el('div', 'cacts');
       const mk = (label, cls, fn) => { const s = el('span', 'mini' + (cls ? ' ' + cls : ''), label); s.onclick = fn; return s; };
-      acts.appendChild(mk(ui.detail, '', () => { location.href = 'tombs.html?tomb=' + encodeURIComponent(c.id); }));
+      acts.appendChild(mk(ui.detail, '', () => { location.href = 'index.html?tomb=' + encodeURIComponent(c.id); }));
       if (c.emperorId) acts.appendChild(mk(ui.tabStar, '',
-        () => { location.href = 'index.html?focus=' + encodeURIComponent(c.emperorId); }));
+        () => { location.href = 'star.html?focus=' + encodeURIComponent(c.emperorId); }));
       acts.appendChild(mk(ui.compareRemove, 'del', () => remove(c.id)));
       head.appendChild(acts);
       t.appendChild(head);

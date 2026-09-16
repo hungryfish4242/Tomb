@@ -1,4 +1,29 @@
 {
- "built_at": "2026-09-16 08:25:26",
- "rewritten": 4
+ "built_at": "2026-09-16 08:42:37",
+ "rewritten": 4,
+ "files": [
+  "china_provinces.js",
+  "star_map_data.js",
+  "compare.html",
+  "star.html",
+  "timeline.html",
+  "index.html",
+  "utils/compare.js",
+  "utils/emperor_bio.js",
+  "utils/emperor_link.js",
+  "utils/geo.js",
+  "utils/graph_note.js",
+  "utils/i18n.js",
+  "utils/lords.js",
+  "utils/map_render.js",
+  "utils/places.js",
+  "utils/places_view.js",
+  "utils/search.js",
+  "utils/timeline.js",
+  "utils/tombs.js",
+  "utils/tomb_data.js",
+  "utils/views.js",
+  "utils/wiki_bio.js",
+  ".nojekyll"
+ ]
 }
