@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>皇帝对比卡 · 浏览器预览</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #12100E; color: #EAE4D6; font: 14px/1.5 "Noto Sans SC", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #16130F;
+    border-bottom: 1px solid rgba(212,160,23,.18); flex-wrap: wrap; }
+  a.nav, .btn { text-decoration: none; padding: 4px 12px; border-radius: 5px; font-size: 13px; cursor: pointer;
+    color: #C9C4B6; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); }
+  a.nav.on { color: #12100E; background: #D4A017; border-color: #D4A017; font-weight: 600; }
+  .cnt { margin-left: auto; font-size: 12px; color: #8C94A0; }
+  .msg { padding: 8px 14px 0; font-size: 12px; color: #E07A5F; }
+  .empty { padding: 16px 14px; font-size: 13px; color: #B9A272; max-width: 720px; }
+  section { padding: 12px 14px 4px; }
+  .sec-t { font-size: 13px; color: #D4A017; letter-spacing: .5px; margin-bottom: 8px; }
+  .table { display: grid; gap: 1px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.07); }
+  .cell { background: #16130F; padding: 8px 10px; }
+  .cell.k { color: #B9A272; font-size: 12px; background: #131110; }
+  .cell.head { background: #191512; }
+  .badge { display: inline-block; width: 24px; height: 24px; line-height: 24px; text-align: center;
+    border-radius: 50%; color: #F7F2E6; font-size: 12px; border: 1.5px solid rgba(255,255,255,.55); }
+  .who { font-weight: 600; }
+  .en, .from, .pstate { display: block; font-size: 11px; color: #7E7A70; }
+  .from { margin-top: 3px; color: #8C94A0; }
+  .warn { display: inline-block; margin-left: 6px; font-size: 10px; color: #E0B0A0; background: rgba(224,122,95,.16);
+    border: 1px solid rgba(224,122,95,.4); border-radius: 3px; padding: 0 4px; }
+  .miss .val { color: #E07A5F; }
+  .cacts { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .mini { font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; color: #C9C4B6;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); }
+  .mini.del { color: #E0B0A0; border-color: rgba(224,122,95,.35); }
+  .dist { display: flex; align-items: baseline; gap: 10px; padding: 5px 0; font-size: 13px; border-bottom: 1px dashed rgba(255,255,255,.07); }
+  .dl { flex: 1; min-width: 0; }
+  .dv { font-variant-numeric: tabular-nums; color: #FFD9A0; }
+  .dn { flex-basis: 100%; font-size: 11px; color: #B9A272; }
+  .q-row { display: flex; gap: 8px; align-items: center; }
+  .q { flex: 1; max-width: 420px; padding: 6px 10px; font-size: 13px; color: #E8DFC8; border-radius: 6px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.16); }
+  .q:focus { outline: none; border-color: rgba(212,160,23,.6); }
+  .hits { margin-top: 8px; max-width: 620px; }
+  .hit { display: flex; align-items: center; gap: 8px; padding: 5px 8px; font-size: 12px; cursor: pointer;
+    background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 5px; margin-bottom: 4px; }
+  .hit.in { opacity: .5; }
+  .h-sub { color: #8C94A0; }
+  .h-tier { margin-left: auto; font-size: 11px; color: #B9A272; }
+  .h-add { font-size: 14px; color: #FFD9A0; min-width: 34px; text-align: right; }
+  .hint { font-size: 11px; color: #7E7A70; line-height: 1.6; }
+  .note { padding: 10px 14px 28px; font-size: 11px; line-height: 1.7; color: #6E6A61; max-width: 920px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="nav" href="tombs.html">地图</a>
+  <a class="nav" href="timeline.html">时间轴</a>
+  <a class="nav" href="index.html">星图</a>
+  <a class="nav on" href="compare.html">对比</a>
+  <span id="lang"></span>
+  <span class="cnt" id="cnt"></span>
+</header>
+<div class="msg" id="msg"></div>
+<div class="empty" id="empty" hidden></div>
+<section id="cells" hidden>
+  <div class="sec-t" id="cellsT"></div>
+  <div class="table" id="table"></div>
+</section>
+<section id="distSec" hidden>
+  <div class="sec-t" id="distT"></div>
+  <div id="dist"></div>
+</section>
+<section>
+  <div class="sec-t" id="pickT"></div>
+  <div class="q-row">
+    <input class="q" id="q" type="text">
+    <span class="btn" id="clear" hidden></span>
+  </div>
+  <div class="hits" id="hits"></div>
+</section>
+<div class="note" id="note"></div>
+
+<script src="utils/geo.js"></script>
+<script src="utils/tomb_data.js"></script>
+<script src="utils/emperor_link.js"></script>
+<script src="utils/emperor_bio.js"></script>
+<script src="utils/i18n.js"></script>
+<script src="utils/lords.js"></script>
+<script src="utils/wiki_bio.js"></script>
+<script src="utils/tombs.js"></script>
+<script src="utils/search.js"></script>
+<script src="utils/compare.js"></script>
+<script>
+(function () {
+  if (!window.__TOMB_DATA__) {
+    document.getElementById('note').textContent = '未加载到数据：请经 .preview_server.js 打开，'
+      + '页面要能读到 utils/*.js';
+    return;
+  }
+  const tombs = window.Tombs.createTombs(window.__TOMB_DATA__);
+  const cmp = window.Compare.createCompare(tombs);
+  const search = window.Search.createSearch(tombs, 8);
+
+  // 小程序里选择集住在 app.globalData（跨页存活），镜像没有那条通道，用 sessionStorage 顶替——
+  // 键名与小程序字段同名（compare），两端读到的必须是同一份选择，否则"同步"只是口号。
+  const SEL_KEY = 'cmp:sel';
+  const q = new URLSearchParams(location.search);
+  const uiLang = q.get('lang') === 'en' ? 'en' : 'zh';
+  const ui = window.I18N.ui(uiLang);
+
+  function read() {
+    try { const v = JSON.parse(sessionStorage.getItem(SEL_KEY) || '[]'); return Array.isArray(v) ? v : []; }
+    catch (e) { return []; }
+  }
+  function write(list) { try { sessionStorage.setItem(SEL_KEY, JSON.stringify(list)); } catch (e) {} }
+
+  const fromUrl = (q.get('ids') || '').split(',').map(s => s.trim()).filter(Boolean);
+  let sel = fromUrl.length ? window.Compare.norm(fromUrl) : read();
+  const pending = (q.get('add') || '').trim();
+  let pendingMsg = '';
+  if (pending) {
+    const r = window.Compare.addId(sel, pending);
+    sel = r.list; pendingMsg = r.msg || '';
+  }
+  write(sel);
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  // 一次性提示（满了、重复）优先于常驻提示（还差几位）：后者每次重算都会出现，
+  // 若直接写进同一个节点，用户点完按钮看到的永远是"再选一位"，等于没回答他刚才那一下。
+  let flash = pendingMsg;
+  function say(m) { flash = m || ''; }
+
+  function add(id) {
+    const r = window.Compare.addId(sel, id);
+    sel = r.list; write(sel); say(r.msg); render();
+  }
+  function remove(id) {
+    sel = window.Compare.removeId(sel, id); write(sel); say(''); render();
+  }
+
+  function render() {
+    const v = cmp.view(sel);
+    document.getElementById('cnt').textContent =
+      ui.compareChosen + ' ' + v.columns.length + '/' + v.limit
+      + (v.columns.length ? '｜' + v.stats.linked + '/' + v.columns.length + ' 连上生平表（全库 ' + v.stats.pool + '）' : '');
+    document.getElementById('empty').textContent = ui.compareEmpty;
+    document.getElementById('empty').hidden = !!v.columns.length;
+    document.getElementById('cellsT').textContent = ui.compareCells;
+    document.getElementById('distT').textContent = ui.compareDist;
+    document.getElementById('pickT').textContent = ui.comparePick;
+    document.getElementById('q').placeholder = ui.searchPh;
+    document.getElementById('clear').textContent = ui.compareClear;
+    document.getElementById('clear').hidden = !v.columns.length;
+    document.getElementById('note').textContent = v.note
+      + '　本预览里「详情」与「地图」落在同一页（tombs.html 的抽屉），所以每列只给一个入口；'
+      + '小程序端是三个去处（详情页／星图／地图定位）。'
+      + (uiLang === 'en' ? ' ' + ui.langNotice : '');
+    document.getElementById('msg').textContent = flash || v.need || '';
+    renderTable(v);
+    renderDist(v);
+  }
+
+  function renderTable(v) {
+    const box = document.getElementById('cells');
+    box.hidden = !v.columns.length;
+    const t = document.getElementById('table');
+    t.textContent = '';
+    if (!v.columns.length) return;
+    t.style.gridTemplateColumns = '110px repeat(' + v.columns.length + ', minmax(0, 1fr))';
+
+    t.appendChild(el('div', 'cell k'));
+    for (const c of v.columns) {
+      const head = el('div', 'cell head');
+      const bd = el('span', 'badge', c.badge); bd.style.background = c.color; head.appendChild(bd);
+      head.appendChild(el('span', 'who', c.name));
+      if (!c.linked) head.appendChild(el('span', 'warn', ui.notLinked));
+      if (c.nameEn) head.appendChild(el('span', 'en', c.nameEn));
+      const acts = el('div', 'cacts');
+      const mk = (label, cls, fn) => { const s = el('span', 'mini' + (cls ? ' ' + cls : ''), label); s.onclick = fn; return s; };
+      acts.appendChild(mk(ui.detail, '', () => { location.href = 'tombs.html?tomb=' + encodeURIComponent(c.id); }));
+      if (c.emperorId) acts.appendChild(mk(ui.tabStar, '',
+        () => { location.href = 'index.html?focus=' + encodeURIComponent(c.emperorId); }));
+      acts.appendChild(mk(ui.compareRemove, 'del', () => remove(c.id)));
+      head.appendChild(acts);
+      t.appendChild(head);
+    }
+    for (const row of v.table) {
+      t.appendChild(el('div', 'cell k', row.k));
+      for (const cell of row.vals) {
+        const d = el('div', 'cell' + (cell.missing ? ' miss' : ''));
+        d.appendChild(el('span', 'val', cell.v));
+        if (cell.from) d.appendChild(el('span', 'from', cell.from));
+        t.appendChild(d);
+      }
+    }
+  }
+
+  function renderDist(v) {
+    const sec = document.getElementById('distSec');
+    sec.hidden = !v.pairs.length;
+    const box = document.getElementById('dist');
+    box.textContent = '';
+    for (const p of v.pairs) {
+      const row = el('div', 'dist');
+      row.appendChild(el('span', 'dl', p.label));
+      row.appendChild(el('span', 'dv', p.text));
+      if (p.note) row.appendChild(el('span', 'dn', p.note));
+      box.appendChild(row);
+    }
+  }
+
+  function renderHits() {
+    const text = document.getElementById('q').value;
+    const box = document.getElementById('hits');
+    box.textContent = '';
+    if (!text.trim()) return;
+    for (const h of search.search(text)) {
+      const row = el('div', 'hit' + (sel.indexOf(h.id) >= 0 ? ' in' : ''));
+      const bd = el('span', 'badge', h.badge); bd.style.background = h.color; row.appendChild(bd);
+      row.appendChild(el('span', null, h.name));
+      row.appendChild(el('span', 'h-sub', [h.state, h.emperor].filter(Boolean).join('｜')));
+      row.appendChild(el('span', 'h-tier', h.tierLabel));
+      row.appendChild(el('span', 'h-add', sel.indexOf(h.id) >= 0 ? ui.compareChosen : '+'));
+      row.onclick = () => add(h.id);
+      box.appendChild(row);
+    }
+    if (!box.children.length) box.appendChild(el('div', 'hint', search.NO_RESULT));
+  }
+
+  document.getElementById('lang').innerHTML =
+    uiLang === 'zh' ? '<a class="nav" href="compare.html?lang=en">EN</a>'
+      : '<a class="nav" href="compare.html">中文</a>';
+  document.getElementById('q').oninput = renderHits;
+  document.getElementById('clear').onclick = () => { sel = []; write(sel); say(''); render(); };
+  render();
+})();
+</script>
+</body>
+</html>

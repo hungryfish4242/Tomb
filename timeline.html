@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>帝陵时间轴 · 浏览器预览</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #12100E; color: #EAE4D6; font: 14px/1.5 "Noto Sans SC", system-ui, sans-serif; }
+  header { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: #16130F;
+    border-bottom: 1px solid rgba(212,160,23,.18); flex-wrap: wrap; }
+  a.nav { text-decoration: none; padding: 4px 12px; border-radius: 5px; font-size: 13px;
+    color: #C9C4B6; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); }
+  a.nav.on { color: #12100E; background: #D4A017; border-color: #D4A017; font-weight: 600; }
+  .cnt { margin-left: auto; font-size: 12px; color: #8C94A0; }
+  .chips { display: flex; gap: 6px; padding: 6px 14px; overflow-x: auto; white-space: nowrap; }
+  .chip { flex: none; padding: 3px 10px; font-size: 12px; color: #C9C4B6; border-radius: 999px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.12); cursor: pointer; }
+  .chip.on { border-color: #D4A017; color: #FFD9A0; }
+  .chip .n { opacity: .65; margin-left: 4px; font-size: 11px; }
+  .sws { display: flex; gap: 8px; padding: 2px 14px 8px; font-size: 12px; }
+  .sw { padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.04);
+    border: 1px solid rgba(255,255,255,.12); cursor: pointer; color: #C9C4B6; }
+  .sw.on { color: #FFD9A0; background: rgba(212,160,23,.22); border-color: rgba(212,160,23,.5); }
+  .rng { display: flex; align-items: center; gap: 6px; padding: 2px 14px 8px; font-size: 12px;
+    color: #C9C4B6; flex-wrap: wrap; }
+  .rng .lab { color: #B9A272; }
+  .rng input { width: 92px; padding: 3px 8px; font-size: 12px; color: #E8DFC8; border-radius: 6px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.16); }
+  .rng input:focus { outline: none; border-color: rgba(212,160,23,.6); }
+  .rng-msg { padding: 0 14px 6px; font-size: 12px; color: #E07A5F; }
+  .rng-txt { padding: 0 14px 6px; font-size: 12px; color: #B9A272; }
+  .axis { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 8px 12px 14px;
+    background: #131110; border-top: 1px solid rgba(255,255,255,.06); border-bottom: 1px solid rgba(255,255,255,.06); }
+  .node { position: relative; flex: none; width: 84px; padding: 0 4px; text-align: center; cursor: pointer; }
+  .node .era { position: absolute; top: -2px; left: 0; font-size: 10px; color: #B9A272;
+    background: rgba(18,16,14,.9); padding: 0 4px; border-radius: 3px; white-space: nowrap; }
+  .node.rule::before { content: ""; position: absolute; left: 0; top: 16px; bottom: 0; width: 1px;
+    background: rgba(212,160,23,.22); }
+  .band { height: 4px; border-radius: 2px; margin-top: 18px; }
+  .badge { display: block; width: 26px; height: 26px; line-height: 26px; margin: 5px auto 0;
+    border-radius: 50%; color: #F7F2E6; font-size: 13px; border: 1.5px solid rgba(255,255,255,.55); }
+  .yr { display: block; font-size: 11px; color: #E8DFC8; margin-top: 2px; }
+  .yr.bce { color: #9FC6D8; }
+  .nm { font-size: 10px; color: #A9A499; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tag { display: inline-block; margin-top: 1px; font-size: 9px; color: #12100E; background: #C8A76B;
+    padding: 0 4px; border-radius: 2px; }
+  .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-top: 2px; }
+  .dot.apx { background: #A0A0A0; } .dot.nc { background: #E07A5F; }
+  section { padding: 10px 14px; }
+  .pend-h { font-size: 12px; color: #B9A272; }
+  .pend { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .pitem { display: flex; align-items: center; gap: 6px; padding: 3px 8px; font-size: 12px;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 4px; cursor: pointer; }
+  .pitem .badge { width: 18px; height: 18px; line-height: 18px; font-size: 10px; margin: 0; }
+  .pstate { color: #7E7A70; font-size: 11px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; padding: 8px 14px; font-size: 11px; color: #8C94A0; }
+  .legend .sw2 { display: inline-block; width: 16px; height: 4px; border-radius: 2px; vertical-align: 2px; margin-right: 4px; }
+  .note { padding: 6px 14px 20px; font-size: 11px; line-height: 1.6; color: #6E6A61; max-width: 900px; }
+</style>
+</head>
+<body>
+<header>
+  <a class="nav" href="tombs.html">地图</a>
+  <a class="nav on" href="timeline.html">时间轴</a>
+  <a class="nav" href="index.html">星图</a>
+  <a class="nav" href="compare.html">对比</a>
+  <span class="cnt" id="cnt"></span>
+</header>
+<div class="chips" id="chips"></div>
+<div class="sws" id="sws"></div>
+<div class="rng" id="rng"></div>
+<div class="rng-msg" id="rngmsg"></div>
+<div class="axis" id="axis"></div>
+<div class="rng-txt" id="rngtxt"></div>
+<section>
+  <div class="pend-h" id="pendh"></div>
+  <div class="pend" id="pend"></div>
+</section>
+<div class="legend" id="legend"></div>
+<div class="note" id="note"></div>
+
+<script src="utils/geo.js"></script>
+<script src="utils/tomb_data.js"></script>
+<script src="utils/emperor_link.js"></script>
+<script src="utils/emperor_bio.js"></script>
+<script src="utils/lords.js"></script>
+<script src="utils/wiki_bio.js"></script>
+<script src="utils/tombs.js"></script>
+<script src="utils/timeline.js"></script>
+<script>
+(function () {
+  if (!window.__TOMB_DATA__) {
+    document.getElementById('note').textContent = '未加载到数据：请经 .preview_server.js 打开，'
+      + '页面要能读到 utils/*.js';
+    return;
+  }
+  const tombs = window.Tombs.createTombs(window.__TOMB_DATA__);
+  const TL = window.Timeline.createTimeline(tombs);
+  // 筛选维度与小程序页完全同名同义；镜像没有 globalData，用 sessionStorage 当同一条通道。
+  // 键名两端一致（PRD §3.2 切换视图时筛选保持），少一层封装是为了在浏览器里能直接看到它。
+  const FILTER_KEY = 'tl:filters';
+  const DEFAULTS = { dynasty: '', doubtfulOnly: false, forgottenOnly: false,
+  forgottenStrong: false, accessTier: '', yearFrom: null, yearTo: null };
+  const state = Object.assign({}, DEFAULTS, read());
+  function read() {
+    try { return JSON.parse(sessionStorage.getItem(FILTER_KEY) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+  function write() { try { sessionStorage.setItem(FILTER_KEY, JSON.stringify(state)); } catch (e) {} }
+
+  function opts() {
+    return { dynasty: state.dynasty ? [state.dynasty] : [], doubtfulOnly: state.doubtfulOnly,
+      forgottenOnly: state.forgottenOnly,
+      forgottenStrong: state.forgottenStrong, accessTier: state.accessTier,
+      yearFrom: state.yearFrom, yearTo: state.yearTo };
+  }
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function goto(id) { location.href = 'tombs.html?tomb=' + encodeURIComponent(id); }
+
+  function renderChips() {
+    const box = document.getElementById('chips');
+    box.textContent = '';
+    for (const d of tombs.dynastyOptions) {
+      const c = el('div', 'chip' + (state.dynasty === d.code ? ' on' : ''));
+      c.appendChild(el('span', null, d.label));
+      c.appendChild(el('span', 'n', String(d.count)));
+      c.onclick = () => { state.dynasty = state.dynasty === d.code ? '' : d.code; write(); render(); };
+      box.appendChild(c);
+    }
+  }
+  function renderSws() {
+    const box = document.getElementById('sws');
+    box.textContent = '';
+    [['doubtfulOnly', '仅存疑'], ['forgottenOnly', '被遗忘的帝陵'],
+     ['forgottenStrong', '被遗忘·强 ' + tombs.forgottenCount.strong]].forEach(([k, label]) => {
+      const s = el('div', 'sw' + (state[k] ? ' on' : ''), label);
+      s.onclick = () => { state[k] = !state[k]; write(); render(); };
+      box.appendChild(s);
+    });
+    for (const t of tombs.ACCESS_TIERS.slice(1)) {
+      const s = el('div', 'sw' + (state.accessTier === t.key ? ' on' : ''),
+        `${t.label} ${tombs.counts.accessTiers[t.key]}`);
+      s.onclick = () => {
+        state.accessTier = state.accessTier === t.key ? '' : t.key; write(); render();
+      };
+      box.appendChild(s);
+    }
+    const r = el('div', 'sw', '重置');
+    r.onclick = () => {
+      Object.assign(state, DEFAULTS);
+      if (rngCtl) { rngCtl.fi.value = ''; rngCtl.ti.value = ''; }
+      document.getElementById('rngmsg').textContent = '';
+      write(); render();
+    };
+    box.appendChild(r);
+  }
+
+  // F-02-5 区间：解析与文案一律走 utils/timeline.js，与小程序页同一份判据。
+  // 控件只建一次——每次 render 重建会在打字时丢掉焦点。
+  let rngCtl = null;
+  function buildRange() {
+    const box = document.getElementById('rng');
+    const fi = el('input'); const ti = el('input');
+    fi.placeholder = ti.placeholder = '如 386 或 前386';
+    const clr = el('div', 'sw', '清掉区间');
+    const apply = el('div', 'sw', '只看这段');
+    function say(msg) { document.getElementById('rngmsg').textContent = msg || ''; }
+    function commit() {
+      const a = TL.parseYearInput(fi.value), b = TL.parseYearInput(ti.value);
+      if (a.msg || b.msg) { say(a.msg || b.msg); return; }
+      if (a.year != null && b.year != null && a.year > b.year) {
+        say('起始晚于结束：' + TL.formatYear(a.year) + ' 不在 ' + TL.formatYear(b.year) + ' 之前'); return;
+      }
+      say(''); state.yearFrom = a.year; state.yearTo = b.year; write(); render();
+    }
+    function clear() {
+      state.yearFrom = null; state.yearTo = null; fi.value = ''; ti.value = ''; say('');
+      write(); render();
+    }
+    apply.onclick = commit; clr.onclick = clear;
+    fi.onkeydown = ti.onkeydown = e => { if (e.key === 'Enter') commit(); };
+    box.appendChild(el('span', 'lab', '区间'));
+    box.appendChild(fi); box.appendChild(el('span', 'lab', '—')); box.appendChild(ti);
+    box.appendChild(apply); box.appendChild(clr);
+    rngCtl = { fi, ti, clr, clear };
+  }
+  function syncRange() {
+    const on = state.yearFrom != null || state.yearTo != null;
+    if (on) {
+      if (!rngCtl.fi.value && state.yearFrom != null) rngCtl.fi.value = TL.formatYear(state.yearFrom);
+      if (!rngCtl.ti.value && state.yearTo != null) rngCtl.ti.value = TL.formatYear(state.yearTo);
+    }
+    rngCtl.clr.style.display = on ? '' : 'none';
+    rngCtl.clr.className = 'sw' + (on ? ' on' : '');
+    return on;
+  }
+
+  function render() {
+    const rangeOn = syncRange();
+    const dated = TL.filterRows(TL.dated, opts());
+    const pending = TL.filterRows(TL.undated, opts());
+    // 区间把无年份的行一律挡在外面（判不出在不在区间内）：它们得被数出来，不能静默消失
+    const noRange = TL.filterRows(TL.undated, Object.assign({}, opts(), { yearFrom: null, yearTo: null }));
+    document.getElementById('rngtxt').textContent =
+      TL.rangeNote(state.yearFrom, state.yearTo, dated.length, noRange.length - pending.length);
+    document.getElementById('cnt').textContent =
+      `在轴 ${dated.length + pending.length} 座｜定年 ${TL.stats.dated}／待核 ${TL.stats.undated}`
+      // minYear 在数据层是带负号的整数（CBDB/Wikidata 惯例），界面上必须说成"公元前"：
+      // 一个"-210"既没标纪元、又暗示存在公元 0 年（PRD §6.1）。
+      + `｜跨纪元 ${TL.formatYear(TL.stats.minYear)}→${TL.formatYear(TL.stats.maxYear)}`;
+
+    const axis = document.getElementById('axis');
+    axis.textContent = '';
+    let lastCentury = null;
+    for (const x of dated) {
+      const c = TL.centuryOf(x.year);
+      const isNew = c !== lastCentury;
+      lastCentury = c;
+      const n = el('div', 'node' + (isNew ? ' rule' : ''));
+      if (isNew) n.appendChild(el('div', 'era', TL.centuryLabel(c)));
+      const b = el('div', 'band'); b.style.background = x.color; n.appendChild(b);
+      const bd = el('span', 'badge', x.badge); bd.style.background = x.color; n.appendChild(bd);
+      n.appendChild(el('span', 'yr' + (x.year < 0 ? ' bce' : ''),
+        x.year < 0 ? '前' + (-x.year) : String(x.year)));
+      n.appendChild(el('div', 'nm', x.name)).title = x.raw + '｜' + x.place;
+      if (x.relocated) n.appendChild(el('span', 'tag', TL.RELOCATED_TAG));
+      if (x.approx) n.appendChild(el('i', 'dot apx'));
+      if (!x.hasCoord) n.appendChild(el('i', 'dot nc'));
+      n.onclick = () => goto(x.id);
+      axis.appendChild(n);
+    }
+    if (!dated.length) axis.appendChild(el('div', 'nm', '当前筛选下没有已定年的帝陵'));
+
+    document.getElementById('pendh').textContent = rangeOn
+      ? `${TL.PENDING_TAG} ${noRange.length} 座：区间生效时不列（没有年份就判不出在不在区间内）`
+      : `${TL.PENDING_TAG} ${pending.length} 座（按朝代聚在一起，不编年份）`;
+    const pend = document.getElementById('pend');
+    pend.textContent = '';
+    for (const x of pending) {
+      const it = el('div', 'pitem');
+      const bd = el('span', 'badge', x.badge); bd.style.background = x.color; it.appendChild(bd);
+      it.appendChild(el('span', null, x.name));
+      it.appendChild(el('span', 'pstate', x.state || '—'));
+      it.onclick = () => goto(x.id);
+      pend.appendChild(it);
+    }
+
+    document.getElementById('legend').innerHTML =
+      `<span><i class="sw2" style="background:#D4A017"></i>色条＝朝代，与徽章首字同源（颜色不单独表意）</span>`
+      + `<span><b style="color:#9FC6D8">前</b>公元前年份，与公元连续排序（全轴无 0 年）</span>`
+      + `<span><b class="tag">${TL.RELOCATED_TAG}</b>该年是迁葬而非初葬，共 ${TL.stats.relocated} 座</span>`
+      + `<span><i class="dot apx"></i>只有市级质心坐标（不上图）　<i class="dot nc"></i>无坐标，只在此页出现</span>`;
+    document.getElementById('note').textContent = TL.AXIS_NOTE
+      + '　（浏览器预览与小程序共用 utils/timeline.js 的解析与排序；地图页底图为官方瓦片，此预览无瓦片）';
+    renderChips(); renderSws();
+  }
+  buildRange();
+  render();
+})();
+</script>
+</body>
+</html>
